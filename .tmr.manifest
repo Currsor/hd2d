@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "description": "HD_2D 项目 TMR 多仓库清单",
+  "repositories": [
+    {
+      "name": "hd2d",
+      "path": ".",
+      "url": "git@github.com:currsor/hd2d.git",
+      "branch": "master",
+      "description": "C++ 源码 + TypeScript 游戏逻辑 + 项目配置 + 工具脚本",
+      "owners": ["programmer"],
+      "files": [
+        "HD_2D.uproject",
+        "Source/",
+        "TypeScript/",
+        "Config/",
+        "Scripts/",
+        "CLAUDE.md",
+        "README.md",
+        "setup.sh",
+        "setup.ps1",
+        "ue-py-config.json",
+        ".gitignore",
+        ".tmr.manifest"
+      ]
+    },
+    {
+      "name": "hd2d-content",
+      "path": "Content",
+      "url": "git@github.com:currsor/hd2d-content.git",
+      "branch": "master",
+      "description": "蓝图资产、动画、纹理、音频 — 策划/美术主要工作区",
+      "owners": ["designer", "artist", "programmer"]
+    },
+    {
+      "name": "hd2d-plugins",
+      "path": "Plugins",
+      "url": "git@github.com:currsor/hd2d-plugins.git",
+      "branch": "master",
+      "description": "第三方插件 (Puerts, PaperZD, LogViewerPro) — 几乎不变，不含 V8 库",
+      "owners": ["programmer"]
+    }
+  ]
+}

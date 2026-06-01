@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../Content/JavaScript"
+		},
+		{
+			"path": "../Source/HD_2D"
+		},
+		{
+			"path": "../Typing"
+		},
+		{
+			"path": "../Plugins/Puerts"
+		}
+	],
+	"settings": {}
+}

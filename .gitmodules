@@ -1,0 +1,3 @@
+[submodule "Plugins/Puerts"]
+	path = Plugins/Puerts
+	url = https://github.com/Tencent/puerts.git
