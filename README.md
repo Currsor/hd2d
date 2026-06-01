@@ -9,25 +9,30 @@ A 2D game project built with Unreal Engine 5.4, featuring PaperZD, EnhancedInput
 - **Xcode 15+**（仅 macOS）
 - **Visual Studio 2022+**（仅 Windows）
 
+## 仓库结构
+
+项目由三个 Git 仓库组成，通过 `.tmr.manifest` 管理：
+
+| 仓库 | 内容 | 地址 |
+|---|---|---|
+| `hd2d` | C++ 源码 + TypeScript + 配置 | [Currsor/hd2d](https://github.com/Currsor/hd2d) |
+| `hd2d-content` | 蓝图资产、动画、纹理 | [Currsor/hd2d-content](https://github.com/Currsor/hd2d-content) |
+| `hd2d-plugins` | 第三方插件 (14MB) | [Currsor/hd2d-plugins](https://github.com/Currsor/hd2d-plugins) |
+
+详见 [TMR.md](TMR.md)。
+
 ## 首次克隆后初始化
-
-### UGit + TMR（推荐）
-
-项目使用 TMR 管理三个仓库（详见 [TMR.md](TMR.md)）。在 UGit 中选择「克隆多仓」，输入 manifest 仓库地址即可自动拉取全部仓库。
-
-### 手动克隆
 
 ```bash
 # 1. 克隆根仓库
-git clone git@git.woa.com:your-group/hd2d.git HD_2D
+git clone git@github.com:Currsor/hd2d.git HD_2D
 cd HD_2D
 
-# 2. 克隆子仓库（或通过 UGit TMR 自动同步）
-git clone git@git.woa.com:your-group/hd2d-content.git Content
-git clone git@git.woa.com:your-group/hd2d-plugins.git Plugins
-```
+# 2. 克隆子仓库
+git clone git@github.com:Currsor/hd2d-content.git Content
+git clone git@github.com:Currsor/hd2d-plugins.git Plugins
 
-克隆后在项目根目录运行一条命令完成初始化（submodule、V8 下载、项目生成）：
+# 3. 一键初始化（V8 下载 + 项目生成）
 
 **macOS / Linux:**
 
