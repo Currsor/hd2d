@@ -92,8 +92,7 @@ Plugins/Puerts/ThirdParty/v8_backup_x86/
 
 # === TMR 多仓库管理 ===
 # Content/ 和 Plugins/ 由独立仓库管理，不在 hd2d 根仓库中追踪
-Content/*
-!Content/JavaScript/
+Content/
 Plugins/
 
 # === Puerts C# 构建缓存 ===
