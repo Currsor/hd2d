@@ -1,4 +1,4 @@
-﻿# setup.ps1 — HD_2D 项目一键初始化 (Windows PowerShell)
+# setup.ps1 — HD_2D 项目一键初始化 (Windows PowerShell)
 # 替代 README 中所有手动步骤：Git submodule → V8 下载 → 项目生成
 #
 # 用法: 在项目根目录右键 → "Open in Terminal"，然后运行:
@@ -15,12 +15,10 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"  # 加速 Invoke-WebRequest
 
 $ScriptDir   = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ProjectDir  = $ScriptDir
+$ProjectDir  = (Get-Item $ScriptDir).Parent.FullName
 $PluginDir   = "$ProjectDir\Plugins\Puerts"
 $V8Version   = "v8_9.4.146.24"
-
-$V8DownloadUrl = "https://github.com/puerts/backend-v8/releases/download/V8_9.4.146.24__251225/v8_bin_9.4.146.24.tar.gz"
-
+$V8Url       = "https://github.com/puerts/backend-v8/releases/download/V8_9_4_146_24_240430/v8_bin_9_4_146_24.tgz"
 $V8TargetDir = "$PluginDir\ThirdParty\$V8Version"
 
 # ── 输出辅助 ──
@@ -63,51 +61,29 @@ function Invoke-V8Download {
 
     # 下载
     $tmpDir  = Join-Path $env:TEMP "hd2d_setup_$(Get-Random)"
-    $dlPath  = "$tmpDir\v8_bin_9.4.146.24.tar.gz"
+    $dlPath  = "$tmpDir\v8_bin_9_4_146_24.tgz"
     $null = New-Item -ItemType Directory -Force -Path $tmpDir
 
-    Say "下载 V8 预编译库 (~360MB)..."
-    Say "源: $V8DownloadUrl"
-    
+    Say "下载 V8 预编译库 (~50MB)..."
+    Say "源: $V8Url"
     try {
-        Download-File -Uri $V8DownloadUrl -OutFile $dlPath -MaxRetries 3
-        Say "下载完成"
+        Invoke-WebRequest -Uri $V8Url -OutFile $dlPath -UseBasicParsing
     } catch {
-        Warn "自动下载失败，请手动下载:"
-        Warn "  $V8DownloadUrl"
-        Warn "下载后解压到: $V8TargetDir"
-        Warn "确保解压后包含: Lib\Win64\wee8.lib"
-        Err "手动操作完成后重新运行此脚本即可跳过下载步骤"
+        Err "下载失败: $_`n请检查网络连接或手动下载: $V8Url"
     }
 
-    # 解压
+    # 解压 (Windows 10 1803+ 内置 tar)
     Say "解压到 $tmpDir ..."
     $extractDir = "$tmpDir\extracted"
     $null = New-Item -ItemType Directory -Force -Path $extractDir
-
-    $extractSuccess = $false
-    
-    # 方式1：使用 Windows 内置 tar
-    try {
-        Say "尝试使用 Windows 内置 tar 解压..."
-        tar -xzf $dlPath -C $extractDir
-        if ($LASTEXITCODE -eq 0) {
-            $extractSuccess = $true
-            Say "tar 解压成功"
-        }
-    } catch {
-        Warn "Windows tar 解压失败: $_"
+    tar -xzf $dlPath -C $extractDir
+    if ($LASTEXITCODE -ne 0) {
+        Err "解压失败 (tar 退出码 $LASTEXITCODE)"
     }
 
-    # 查找解压后的目录
+    # Puerts 期望目录名为 v8_9.4.146.24（注意有点号）
+    # 压缩包内可能是 v8_9_4_146_24（下划线）
     $extractedName = Get-ChildItem $extractDir -Directory | Select-Object -First 1
-    if (-not $extractedName) {
-        # 尝试在子目录中查找
-        $extractedName = Get-ChildItem $extractDir -Recurse -Directory | Where-Object {
-            $_.Name -like "*v8*" -or $_.Name -like "*V8*"
-        } | Select-Object -First 1
-    }
-    
     if (-not $extractedName) {
         Err "解压后未找到任何目录，请检查压缩包结构"
     }
@@ -130,9 +106,7 @@ function Invoke-V8Download {
     if (Test-Path $libPath) {
         Say "V8 安装完成 ✓ ($V8TargetDir)"
     } else {
-        Warn "V8 库文件未找到于 $V8TargetDir\Lib\Win64\"
-        Warn "请检查压缩包结构，可能存在路径差异"
-        Warn "手动修正后重新运行即可跳过此步骤"
+        Err "V8 库文件未找到于 $V8TargetDir\Lib\Win64\ — 请检查压缩包结构"
     }
 }
 
@@ -148,8 +122,6 @@ function Invoke-GenerateProject {
             $installs = Get-ItemProperty -Path $regPath -ErrorAction Stop
             if ($installs.PSObject.Properties.Name -contains "5.4") {
                 $engineRoot = $installs."5.4"
-            } elseif ($installs.PSObject.Properties.Name -contains "5.5") {
-                $engineRoot = $installs."5.5"
             }
         } catch {}
 
@@ -159,9 +131,7 @@ function Invoke-GenerateProject {
                 "C:\Program Files\Epic Games\UE_5.4",
                 "C:\Program Files\Epic Games\UE_5.5",
                 "D:\Epic Games\UE_5.4",
-                "D:\Epic Games\UE_5.5",
-                "$env:LOCALAPPDATA\Epic Games\UE_5.4",
-                "$env:LOCALAPPDATA\Epic Games\UE_5.5"
+                "$env:LOCALAPPDATA\Epic Games\UE_5.4"
             )
             foreach ($c in $candidates) {
                 if (Test-Path "$c\Engine\Build\Build.bat") {
@@ -185,11 +155,6 @@ function Invoke-GenerateProject {
 
     $genBat = "$engineRoot\Engine\Build\BatchFiles\GenerateProjectFiles.bat"
     $uproject = "$ProjectDir\HD_2D.uproject"
-
-    if (-not (Test-Path $uproject)) {
-        Warn "未找到项目文件: $uproject"
-        return
-    }
 
     Say "运行 GenerateProjectFiles..."
     & $genBat $uproject -Game -Engine
@@ -220,6 +185,12 @@ function Main {
     Write-Host "  2. cd TypeScript; npm install   (可选，VSCode 类型提示)"
     Write-Host "  3. 启动 UE Editor 后运行 ue-py-init 配置 Python 远程执行"
     Write-Host ""
+
+    # ue-py-config.json 的引擎路径提示
+    if ($engineRoot) {
+        Say "检测到引擎路径: $engineRoot"
+        Say "ue-py-config.json 中已配置（若需修改请编辑该文件）"
+    }
 }
 
 Main
