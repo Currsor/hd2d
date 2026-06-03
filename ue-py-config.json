@@ -1,0 +1,9 @@
+{
+  "engine_root": "/Users/Shared/Epic Games/UE_5.4/Engine",
+  "project_name": "HD_2D",
+  "build_command": "/Users/Shared/Epic Games/UE_5.4/Engine/Build/BatchFiles/Mac/Build.sh HD_2DEditor Mac Development -Project=\"$(git rev-parse --show-toplevel)/HD_2D.uproject\"",
+  "knowledge_base": "Scripts/knowledge/knowledge-base.md",
+  "modules_dir": "Scripts/knowledge/modules/",
+  "ue_python_script": "Scripts/ue_python.py",
+  "extension_spec": "Scripts/knowledge/extension-spec.md"
+}
