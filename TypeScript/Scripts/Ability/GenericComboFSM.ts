@@ -31,6 +31,8 @@ export interface ComboFSMCallbacks {
     onExitCombo: () => void;
     /** 缓冲动作被消费时需要外部执行（如 Jump/Dash 等非攻击动作） */
     onExecuteBufferedAction: (action: string) => void;
+    /** DashAttack 入口触发时回调，用于施加前冲位移 */
+    onDashAttackStart?: (direction: { X: number; Y: number; Z: number }) => void;
 }
 
 export class GenericComboFSM {
@@ -47,11 +49,16 @@ export class GenericComboFSM {
 
     private inputMap: Map<number, number> = new Map();
     private timeoutMap: Map<number, number> = new Map();
+    /** DashAttack 连击入口状态索引（-1 = 禁用） */
+    private dashEntryIndex: number = -1;
+    /** 窗口期内 Attack 已预注册，等待 AN_NextAttack 执行过渡 */
+    private nextAttackPending: boolean = false;
 
-    constructor(comp: any, cb: ComboFSMCallbacks) {
+    constructor(comp: any, cb: ComboFSMCallbacks, dashEntryIndex?: number) {
         this.component = comp;
         this.callbacks = cb;
-        if (comp) { this.buildMaps(); console.log(`[ComboFSM] init: states=${comp.ComboStates?.Num?.() ?? 0} transitions=${comp.Transitions?.Num?.() ?? 0}`); }
+        this.dashEntryIndex = typeof dashEntryIndex === "number" && dashEntryIndex >= 0 ? dashEntryIndex : -1;
+        if (comp) { this.buildMaps(); console.log(`[ComboFSM] init: states=${comp.ComboStates?.Num?.() ?? 0} transitions=${comp.Transitions?.Num?.() ?? 0} dashEntry=${this.dashEntryIndex}`); }
         else console.log(`[ComboFSM] init: ❌ no component`);
     }
 
@@ -61,29 +68,10 @@ export class GenericComboFSM {
         if (this.cooldownRemaining > 0) { console.log(`[ComboFSM] tryAttack blocked: cooldown=${this.cooldownRemaining.toFixed(2)}`); return false; }
         if (this.currentIdx === -1 && this.canAct()) { console.log(`[ComboFSM] enterState 0`); this.enterState(0); return true; }
         if (this.currentIdx >= 0 && (this.cancelWindowOpen || this.comboWindowOpen)) {
-            const next = this.inputMap.get(this.currentIdx);
-            console.log(`[ComboFSM] combo window, next=${next} cancel=${this.cancelWindowOpen} combo=${this.comboWindowOpen}`);
-            if (next !== undefined) {
-                if (next === -1) {
-                    this.exitCombo();
-                } else if (this.isValidStateIndex(next)) {
-                    this.enterState(next);
-                } else {
-                    console.error(`[ComboFSM] tryAttack invalid next state ${next}, exiting combo`);
-                    this.exitCombo();
-                }
-                return true;
-            }
-
-            if (this.isTerminalState(this.currentIdx)) {
-                console.log(`[ComboFSM] tryAttack at terminal state ${this.currentIdx}, exiting combo`);
-                this.exitCombo();
-                if (this.canAttack()) {
-                    this.enterState(0);
-                    return true;
-                }
-                return false;
-            }
+            // Attack 统一延迟到 AN_NextAttack 才执行过渡（cancel/combo 窗口都不再立即切）
+            this.nextAttackPending = true;
+            console.log(`[ComboFSM] tryAttack: nextAttackPending=true (cancel=${this.cancelWindowOpen} combo=${this.comboWindowOpen}, defer to AN_NextAttack)`);
+            return true;
         }
         console.log(`[ComboFSM] tryAttack buffered (idx=${this.currentIdx} canAct=${this.canAct()} cancel=${this.cancelWindowOpen} combo=${this.comboWindowOpen})`);
         this.bufferInput("Attack", now);
@@ -106,6 +94,25 @@ export class GenericComboFSM {
         return true;
     }
 
+    /**
+     * 冲刺中按攻击 → DashAttack 入口
+     * 进入 dashEntryIndex 指定的连击状态，后续连击走现有 transition
+     *
+     * @returns 是否成功进入 DashAttack 状态
+     */
+    tryDashAttack(now: number, direction: { X: number; Y: number; Z: number }): boolean {
+        if (this.dashEntryIndex < 0) { console.log(`[ComboFSM] tryDashAttack blocked: dashEntry disabled`); return false; }
+        if (this.cooldownRemaining > 0) { console.log(`[ComboFSM] tryDashAttack blocked: cooldown=${this.cooldownRemaining.toFixed(2)}`); return false; }
+        if (this.currentIdx !== -1 || !this.canAct()) { console.log(`[ComboFSM] tryDashAttack blocked: idx=${this.currentIdx} canAct=${this.canAct()}`); return false; }
+        console.log(`[ComboFSM] tryDashAttack → enterState ${this.dashEntryIndex} dir=(${direction.X.toFixed(2)},${direction.Y.toFixed(2)})`);
+        this.callbacks.onDashAttackStart?.(direction);
+        this.enterState(this.dashEntryIndex);
+        return true;
+    }
+
+    /** DashAttack 入口是否可用 */
+    get dashEntryAvailable(): boolean { return this.dashEntryIndex >= 0 && this.canAttack(); }
+
     // ===== 动画通知 =====
 
     onHitStart(): void { if (this.currentIdx >= 0) this.component?.ActivateHit(this.currentIdx); }
@@ -114,25 +121,13 @@ export class GenericComboFSM {
     onComboWindowOpen(_now: number): void {
         if (this.currentIdx < 0) return;
         this.comboWindowOpen = true;
-        this.consumeBuffered("Attack");
+        // 不再立即 consumeBuffered — Attack 输入统一由 AN_NextAttack 处理
     }
 
     onComboWindowClose(_now: number): void {
         if (this.currentIdx < 0) return;
         this.comboWindowOpen = false;
-        const fallback = this.timeoutMap.get(this.currentIdx);
-        if (fallback !== undefined) {
-            if (fallback === -1) {
-                this.exitCombo();
-            } else if (this.isValidStateIndex(fallback)) {
-                this.enterState(fallback);
-            } else {
-                console.error(`[ComboFSM] onComboWindowClose invalid fallback state ${fallback}, exiting combo`);
-                this.exitCombo();
-            }
-        } else {
-            this.exitCombo();
-        }
+        // 不再立即执行超时回退 — AN_NextAttack 统一处理过渡/退出
     }
 
     onCancelOpen(): void {
@@ -146,6 +141,48 @@ export class GenericComboFSM {
         if (this.currentIdx < 0) return;
         this.cancelWindowOpen = false;
         this.consumeBufferAction(a => a !== "Attack");
+    }
+
+    /**
+     * AN_NextAttack 动画通知回调
+     * 如果有预注册的 Attack 输入 → 执行过渡到下一段
+     * 如果没有 → 执行超时回退
+     */
+    onNextAttack(): void {
+        if (this.currentIdx < 0) return;
+        if (this.nextAttackPending) {
+            this.nextAttackPending = false;
+            const next = this.inputMap.get(this.currentIdx);
+            console.log(`[ComboFSM] onNextAttack: pending consumed, next=${next}`);
+            if (next !== undefined) {
+                if (next === -1) {
+                    this.exitCombo();
+                } else if (this.isValidStateIndex(next)) {
+                    this.enterState(next);
+                } else {
+                    console.error(`[ComboFSM] onNextAttack invalid next state ${next}, exiting combo`);
+                    this.exitCombo();
+                }
+            } else {
+                this.exitCombo();
+            }
+        } else {
+            // 无预注册 Attack → 超时回退
+            const fallback = this.timeoutMap.get(this.currentIdx);
+            console.log(`[ComboFSM] onNextAttack: no pending input, fallback=${fallback}`);
+            if (fallback !== undefined) {
+                if (fallback === -1) {
+                    this.exitCombo();
+                } else if (this.isValidStateIndex(fallback)) {
+                    this.enterState(fallback);
+                } else {
+                    console.error(`[ComboFSM] onNextAttack invalid fallback state ${fallback}, exiting combo`);
+                    this.exitCombo();
+                }
+            } else {
+                this.exitCombo();
+            }
+        }
     }
 
     // ===== 动作占有 =====
@@ -178,7 +215,7 @@ export class GenericComboFSM {
     }
 
     forceEnd(): void { this.component?.DeactivateHit(); this.currentIdx = -1; this.cancelWindowOpen = false; }
-    reset(): void { this.forceEnd(); this.cooldownRemaining = 0; this.buffer = []; this.activeTags.clear(); }
+    reset(): void { this.forceEnd(); this.cooldownRemaining = 0; this.buffer = []; this.activeTags.clear(); this.nextAttackPending = false; }
 
     refreshConfig(): void { if (this.component) { this.inputMap.clear(); this.timeoutMap.clear(); this.buildMaps(); } }
 
@@ -289,6 +326,7 @@ export class GenericComboFSM {
 
         this.currentIdx = idx;
         this.cancelWindowOpen = false;
+        this.nextAttackPending = false;
         this.lastNotifyTime = Date.now();
         const seg = (this.component?.ComboStates?.Get(idx) as any);
         const stateId = `State_${idx}`; // 用 idx 作为 StateId，确保有效值
@@ -305,6 +343,7 @@ export class GenericComboFSM {
         const prev = this.currentIdx;
         this.currentIdx = -1;
         this.cancelWindowOpen = false;
+        this.nextAttackPending = false;
         this.cooldownRemaining = 0.3;
 
         try {

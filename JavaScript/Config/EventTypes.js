@@ -72,6 +72,8 @@ exports.EventTypes = {
     OnCancelWindowClose: "OnCancelWindowClose",
     /** 连击状态进入（FSM enterState 时发出，携带 stateId，驱动 ABP 播放动画） */
     OnComboStateEnter: "OnComboStateEnter",
+    /** 连击下一段执行点（AN_NextAttack 触发，FSM 执行过渡或超时退出） */
+    OnNextAttack: "OnNextAttack",
     /** 连击状态退出（FSM exitCombo 时发出，ABP 回到 Idle） */
     OnComboStateExit: "OnComboStateExit",
     /** 角色落地事件（由 ABP 动画逻辑检测到 isOnGround 从 false->true 发出） */

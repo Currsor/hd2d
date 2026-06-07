@@ -107,6 +107,8 @@ export class DashAbility {
     private dashElapsed: number = 0;
     private cooldownRemaining: number = 0;
     private originalMaxWalkSpeed: number = 0;
+    /** 当前冲刺方向缓存（tryDash 时写入，外部通过 currentDashDirection 读取） */
+    private cachedDirection: DashDirection = { X: 1, Y: 0, Z: 0 };
 
     /** 日志标签，方便区分不同角色的冲刺日志 */
     private logTag: string;
@@ -166,6 +168,7 @@ export class DashAbility {
 
         // 计算冲刺方向
         const dashDirection = this.calculateDashDirection(character);
+        this.cachedDirection = dashDirection;
 
         // 进入冲刺状态
         this.phase = DashPhase.Dashing;
@@ -276,6 +279,9 @@ export class DashAbility {
         if (this.config.dashCooldown <= 0) return 1;
         return 1 - (this.cooldownRemaining / this.config.dashCooldown);
     }
+
+    /** 当前冲刺方向（DashAttack 读取用，仅在冲刺时有效） */
+    get currentDashDirection(): DashDirection { return this.cachedDirection; }
 
     // ======================== 内部方法 ========================
 

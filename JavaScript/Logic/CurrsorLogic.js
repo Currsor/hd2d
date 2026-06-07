@@ -81,7 +81,18 @@ class CurrsorLogic extends CharacterBaseLogic_1.CharacterBaseLogic {
                         this.emitGlobal(EventTypes_1.EventTypes.OnDashStarted, "");
                 }
             },
-        });
+            /** DashAttack 入口 → 施加前冲位移 */
+            onDashAttackStart: (dir) => {
+                const char = this.getOwnerAs();
+                if (char) {
+                    const vel = char.GetVelocity();
+                    vel.X = dir.X * 1500;
+                    vel.Y = dir.Y * 1500;
+                    vel.Z = 0;
+                    char.LaunchCharacter(vel, true, false);
+                }
+            },
+        }, 3); // dashEntryIndex = 3 → ComboStates[3] = DashAttack
         // 碰撞伤害
         character?.AttackCollision?.OnComponentBeginOverlap.Add((_overlapped, otherActor, _otherComp, _bodyIdx, _bSweep, _result) => {
             const comp = comboComp;
@@ -108,6 +119,9 @@ class CurrsorLogic extends CharacterBaseLogic_1.CharacterBaseLogic {
                 case "AN_ComboClose":
                     this.comboFSM.onComboWindowClose(now);
                     break;
+                case "AN_NextAttack":
+                    this.comboFSM.onNextAttack();
+                    break;
                 case "AN_CancelOpen":
                     this.comboFSM.onCancelOpen();
                     break;
@@ -132,12 +146,22 @@ class CurrsorLogic extends CharacterBaseLogic_1.CharacterBaseLogic {
         this.subscribeScoped(EventTypes_1.EventTypes.OnComboWindowClose, () => this.comboFSM.onComboWindowClose(Date.now()), { filter: S });
         this.subscribeScoped(EventTypes_1.EventTypes.OnCancelWindowOpen, () => { console.log("[CurrsorLogic] CancelWindowOpen received"); this.comboFSM.onCancelOpen(); }, { filter: S });
         this.subscribeScoped(EventTypes_1.EventTypes.OnCancelWindowClose, () => this.comboFSM.onCancelClose(Date.now()), { filter: S });
+        this.subscribeScoped(EventTypes_1.EventTypes.OnNextAttack, () => this.comboFSM.onNextAttack(), { filter: S });
         this.subscribeScoped(EventTypes_1.EventTypes.OnLanded, this.onLanded.bind(this), { filter: EventContext_1.ScopeFilter.ANY });
     }
     // ======================== 输入 ========================
     onAttack() {
         if (!this.isActive)
             return;
+        // 冲刺中按攻击 → DashAttack (a1)，结束冲刺、接管位移
+        if (this.dashAbility.isDashing) {
+            const dir = this.dashAbility.currentDashDirection;
+            this.dashAbility.forceEnd();
+            const result = this.comboFSM.tryDashAttack(Date.now(), dir);
+            console.log(`[CurrsorLogic] dashAttack try=${result} dir=(${dir.X.toFixed(2)},${dir.Y.toFixed(2)})`);
+            return;
+        }
+        // 普通连击
         const result = this.comboFSM.tryAttack(Date.now());
         console.log(`[CurrsorLogic] attack try=${result} canAttack=${this.comboFSM.canAttack()} attacking=${this.comboFSM.isAttacking()}`);
     }

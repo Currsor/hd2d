@@ -53,7 +53,18 @@ export class CurrsorLogic extends CharacterBaseLogic {
                     if (ok) this.emitGlobal(EventTypes.OnDashStarted, "");
                 }
             },
-        });
+            /** DashAttack 入口 → 施加前冲位移 */
+            onDashAttackStart: (dir) => {
+                const char = this.getOwnerAs<UE.CharacterBase>();
+                if (char) {
+                    const vel = char.GetVelocity();
+                    vel.X = dir.X * 1500;
+                    vel.Y = dir.Y * 1500;
+                    vel.Z = 0;
+                    char.LaunchCharacter(vel, true, false);
+                }
+            },
+        }, 3); // dashEntryIndex = 3 → ComboStates[3] = DashAttack
 
         // 碰撞伤害
         character?.AttackCollision?.OnComponentBeginOverlap.Add(
@@ -76,6 +87,7 @@ export class CurrsorLogic extends CharacterBaseLogic {
                 case "AN_HitEnd":       this.comboFSM.onHitEnd(); break;
                 case "AN_ComboOpen":    this.comboFSM.onComboWindowOpen(now); break;
                 case "AN_ComboClose":   this.comboFSM.onComboWindowClose(now); break;
+                case "AN_NextAttack":  this.comboFSM.onNextAttack(); break;
                 case "AN_CancelOpen":   this.comboFSM.onCancelOpen(); break;
                 case "AN_CancelClose":  this.comboFSM.onCancelClose(now); break;
             }
@@ -101,6 +113,7 @@ export class CurrsorLogic extends CharacterBaseLogic {
         this.subscribeScoped(EventTypes.OnComboWindowClose, () => this.comboFSM.onComboWindowClose(Date.now()), { filter: S });
         this.subscribeScoped(EventTypes.OnCancelWindowOpen, () => { console.log("[CurrsorLogic] CancelWindowOpen received"); this.comboFSM.onCancelOpen(); }, { filter: S });
         this.subscribeScoped(EventTypes.OnCancelWindowClose, () => this.comboFSM.onCancelClose(Date.now()), { filter: S });
+        this.subscribeScoped(EventTypes.OnNextAttack, () => this.comboFSM.onNextAttack(), { filter: S });
         this.subscribeScoped(EventTypes.OnLanded, this.onLanded.bind(this), { filter: ScopeFilter.ANY });
     }
 
@@ -108,6 +121,15 @@ export class CurrsorLogic extends CharacterBaseLogic {
 
     private onAttack(): void {
         if (!this.isActive) return;
+        // 冲刺中按攻击 → DashAttack (a1)，结束冲刺、接管位移
+        if (this.dashAbility.isDashing) {
+            const dir = this.dashAbility.currentDashDirection;
+            this.dashAbility.forceEnd();
+            const result = this.comboFSM.tryDashAttack(Date.now(), dir);
+            console.log(`[CurrsorLogic] dashAttack try=${result} dir=(${dir.X.toFixed(2)},${dir.Y.toFixed(2)})`);
+            return;
+        }
+        // 普通连击
         const result = this.comboFSM.tryAttack(Date.now());
         console.log(`[CurrsorLogic] attack try=${result} canAttack=${this.comboFSM.canAttack()} attacking=${this.comboFSM.isAttacking()}`);
     }
