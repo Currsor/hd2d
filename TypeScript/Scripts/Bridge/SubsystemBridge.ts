@@ -69,6 +69,45 @@ export function getUEType(fullPath: string): any {
 }
 
 /**
+ * 尝试加载一个 UE 枚举类型。
+ *
+ * fullPath 可以是完整路径 `/Script/HD_2D.EComboTrigger`，也可以只提供枚举名 `EComboTrigger`。
+ */
+export function loadUEEnum(fullPath: string): any {
+    const fn = (globalThis as any).puerts?.loadUEType;
+    if (typeof fn === "function") {
+        const result = fn(fullPath);
+        if (result) return result;
+    }
+
+    const enumName = fullPath.split("/").pop()?.split(".").pop();
+    if (enumName && UE.Enum?.Find) {
+        try {
+            return UE.Enum.Find(enumName);
+        } catch {
+            // ignore
+        }
+    }
+    return undefined;
+}
+
+/**
+ * 从运行时 UE 枚举对象读取值，找不到时返回 fallback。
+ */
+export function getUEEnumValue(enumType: any, memberName: string, fallback: number): number {
+    if (!enumType) {
+        console.warn(`[SubsystemBridge] UE enum 未加载，使用 fallback 枚举值 ${memberName}=${fallback}`);
+        return fallback;
+    }
+    const value = enumType[memberName];
+    if (typeof value === "number") {
+        return value;
+    }
+    console.warn(`[SubsystemBridge] UE enum 成员 ${memberName} 未找到，使用 fallback 值 ${fallback}`);
+    return fallback;
+}
+
+/**
  * GameInstance 获取策略
  */
 function getGameInstance(logTag: string): UE.GameInstance | null {

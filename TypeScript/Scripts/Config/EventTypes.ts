@@ -79,6 +79,9 @@ export const EventTypes = {
     /** 连击某段攻击开始（由 CurrsorLogic 发出，payload: comboIndex，驱动动画播放） */
     OnComboAttackStart: "OnComboAttackStart",
 
+    /** 请求播放攻击蒙太奇（payload: PaperZDAnimSequence） */
+    OnPlayAttackMontage: "OnPlayAttackMontage",
+
     /** 连击整套结束（由 CurrsorLogic 发出，payload: totalHits） */
     OnComboEnd: "OnComboEnd",
 
@@ -95,6 +98,21 @@ export const EventTypes = {
 
     /** 连击窗口关闭（蓝图 AN_AttackX_ComboWindowClose 触发） */
     OnComboWindowClose: "OnComboWindowClose",
+
+    /** 取消窗口开启（蓝图 AN_AttackX_CancelOpen 触发） */
+    OnCancelWindowOpen: "OnCancelWindowOpen",
+
+    /** 取消窗口关闭（蓝图 AN_AttackX_CancelClose 触发） */
+    OnCancelWindowClose: "OnCancelWindowClose",
+
+    /** 连击状态进入（FSM enterState 时发出，携带 stateId，驱动 ABP 播放动画） */
+    OnComboStateEnter: "OnComboStateEnter",
+
+    /** 连击状态退出（FSM exitCombo 时发出，ABP 回到 Idle） */
+    OnComboStateExit: "OnComboStateExit",
+
+    /** 角色落地事件（由 ABP 动画逻辑检测到 isOnGround 从 false->true 发出） */
+    OnLanded: "OnLanded",
 
 } as const;
 

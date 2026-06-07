@@ -309,8 +309,10 @@ export class LogicManager {
      * @returns logicId，未找到返回 -1
      */
     findLogicIdByOwner(owner: UE.Object): number {
+        if (!owner) return -1;
+        const ownerName = owner.GetName();
         for (const [id, logic] of this.logicMap) {
-            if (logic.owner === owner) {
+            if (logic.owner?.GetName?.() === ownerName) {
                 return id;
             }
         }

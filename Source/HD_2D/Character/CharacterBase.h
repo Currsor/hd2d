@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "PaperZDCharacter.h"
 #include "InputActionValue.h"
+#include "Components/BoxComponent.h"
 #include "CharacterBase.generated.h"
 
 class AHDPlayerController;
@@ -80,6 +81,12 @@ public:
     UFUNCTION(BlueprintImplementableEvent, Category = "Character|Events")
     void OnAttackTriggered();
 
+    // ==================== 攻击碰撞盒 ====================
+
+    /** 攻击判定碰撞盒（常开，Damage>0 时命中生效） */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character|Combat")
+    class UBoxComponent* AttackCollision;
+
     // ==================== 激活状态 ====================
 
     /** 设置激活状态 */
@@ -104,6 +111,15 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     FVector2D Orientation;
 
+    /** 攻击期间锁定移动输入 */
+    UPROPERTY(BlueprintReadOnly, Category = "Character|Combat")
+    bool bAttackLocked = false;
+
+public:
+    /** 设置攻击移动锁定 */
+    UFUNCTION(BlueprintCallable, Category = "Character|Combat")
+    void SetAttackLock(bool bLocked);
+
 protected:
     // ==================== 生命周期 ====================
 
@@ -111,6 +127,12 @@ protected:
 
     /** 移动模式变化回调（用于检测离开地面的时刻） */
     virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode) override;
+
+    // ==================== 动画通知转发 ====================
+
+    /** 动画通知自动转发到 ComboAttackComponent.HandleNotify */
+    UFUNCTION(BlueprintCallable, Category = "Character|Animation")
+    void OnAnimNotify(FName NotifyName);
 
 private:
     // ==================== 土狼时间内部状态 ====================

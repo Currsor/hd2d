@@ -83,6 +83,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SubsystemBridge = void 0;
 exports.loadUEType = loadUEType;
 exports.getUEType = getUEType;
+exports.loadUEEnum = loadUEEnum;
+exports.getUEEnumValue = getUEEnumValue;
 const UE = __importStar(require("ue"));
 /** UE 结构体类型缓存（模块级共享，所有 Bridge 实例共用） */
 const _typeCache = {};
@@ -100,6 +102,44 @@ function getUEType(fullPath) {
         _typeCache[fullPath] = loadUEType(fullPath);
     }
     return _typeCache[fullPath];
+}
+/**
+ * 尝试加载一个 UE 枚举类型。
+ *
+ * fullPath 可以是完整路径 `/Script/HD_2D.EComboTrigger`，也可以只提供枚举名 `EComboTrigger`。
+ */
+function loadUEEnum(fullPath) {
+    const fn = globalThis.puerts?.loadUEType;
+    if (typeof fn === "function") {
+        const result = fn(fullPath);
+        if (result)
+            return result;
+    }
+    const enumName = fullPath.split("/").pop()?.split(".").pop();
+    if (enumName && UE.Enum?.Find) {
+        try {
+            return UE.Enum.Find(enumName);
+        }
+        catch {
+            // ignore
+        }
+    }
+    return undefined;
+}
+/**
+ * 从运行时 UE 枚举对象读取值，找不到时返回 fallback。
+ */
+function getUEEnumValue(enumType, memberName, fallback) {
+    if (!enumType) {
+        console.warn(`[SubsystemBridge] UE enum 未加载，使用 fallback 枚举值 ${memberName}=${fallback}`);
+        return fallback;
+    }
+    const value = enumType[memberName];
+    if (typeof value === "number") {
+        return value;
+    }
+    console.warn(`[SubsystemBridge] UE enum 成员 ${memberName} 未找到，使用 fallback 值 ${fallback}`);
+    return fallback;
 }
 /**
  * GameInstance 获取策略

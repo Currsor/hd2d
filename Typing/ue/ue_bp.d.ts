@@ -10563,6 +10563,20 @@ declare module "ue" {
     }
 
 // __TYPE_DECL_END
+// __TYPE_DECL_START: ASSOCIATION
+    namespace Engine.PythonTypes {
+        class ComboAttackComponent_OnCombatNotify__PythonCallable extends UE.PythonCallableForDelegate {
+            constructor(Outer?: Object, Name?: string, ObjectFlags?: number);
+            static StaticClass(): Class;
+            static Find(OrigInName: string, Outer?: Object): ComboAttackComponent_OnCombatNotify__PythonCallable;
+            static Load(InName: string): ComboAttackComponent_OnCombatNotify__PythonCallable;
+        
+            __tid_ComboAttackComponent_OnCombatNotify__PythonCallable_0__: boolean;
+        }
+        
+    }
+
+// __TYPE_DECL_END
 // __TYPE_DECL_START: CB4793BB47C72431102DB4975893EA5F
     namespace Game.Test.BP_Cube {
         class BP_Cube_C extends UE.Actor {
@@ -10672,13 +10686,19 @@ declare module "ue" {
     }
 
 // __TYPE_DECL_END
-// __TYPE_DECL_START: CB00F2334165A47BDEF1E7B1377B9385
+// __TYPE_DECL_START: 4C361E5D0148E2B0D3111C93434C566F
     namespace Game.Blueprints.Player.Currsor.BP_Currsor {
         class BP_Currsor_C extends UE.Game.Blueprints.Player.Base.BP_CharacterBase.BP_CharacterBase_C {
             constructor(Outer?: Object, Name?: string, ObjectFlags?: number);
             UberGraphFrame: UE.PointerToUberGraphFrame;
+            ComboAttack: UE.ComboAttackComponent;
             ID: number;
             ExecuteUbergraph_BP_Currsor(EntryPoint: number) : void;
+            /*
+             *攻击输入触发时的通知事件。
+             *蓝图侧实现此事件，调用 EmitEventByOwner(Self, "OnAttack") 将输入转发到 TS 逻辑层。
+             */
+            OnAttackTriggered() : void;
             /*
              *冲刺输入触发时的通知事件。
              *蓝图侧实现此事件，调用 EmitEventByOwner(Self, "OnDash") 将输入转发到 TS 动画逻辑。
@@ -10740,11 +10760,17 @@ declare module "ue" {
     }
 
 // __TYPE_DECL_END
-// __TYPE_DECL_START: 40DF544A40B7933857CC35983D735FE1
+// __TYPE_DECL_START: E699311F4E4F2ED66F3C36B320A211ED
     namespace Game.Blueprints.Player.Currsor.Anim.ABP_Currsor {
         class ABP_Currsor_C extends UE.PaperZDAnimInstance {
             constructor(Outer?: Object, Name?: string, ObjectFlags?: number);
             UberGraphFrame: UE.PointerToUberGraphFrame;
+            PaperZDAnimGraphNode_Sink_9: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_PlaySequence_8: UE.PaperZDAnimNode_PlaySequence;
+            PaperZDAnimGraphNode_Sink_8: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_PlaySequence_7: UE.PaperZDAnimNode_PlaySequence;
+            PaperZDAnimGraphNode_Sink_7: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_PlaySequence_6: UE.PaperZDAnimNode_PlaySequence;
             PaperZDAnimGraphNode_Sink_6: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_PlaySequence_5: UE.PaperZDAnimNode_PlaySequence;
             PaperZDAnimGraphNode_Sink_5: UE.PaperZDAnimNode_Sink;
@@ -10781,6 +10807,12 @@ declare module "ue" {
              *Called every tick, after all the animations have been processed.
              */
             OnTick(DeltaTime: number) : void;
+            ReceiveNotify_AN_CancelClose() : void;
+            ReceiveNotify_AN_CancelOpen() : void;
+            ReceiveNotify_AN_ComboClose() : void;
+            ReceiveNotify_AN_ComboOpen() : void;
+            ReceiveNotify_AN_HitEnd() : void;
+            ReceiveNotify_AN_HitStart() : void;
             ZDRule_Transition(bCanEnterTransition: $Ref<boolean>) : void;
             ZDRule_Transition_1(bCanEnterTransition: $Ref<boolean>) : void;
             ZDRule_Transition_2(bCanEnterTransition: $Ref<boolean>) : void;
