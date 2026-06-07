@@ -6,6 +6,7 @@
 export const GameplayTagNames = {
     ActionCancelDash: "Action.Cancel.Dash",
     ActionCancelJump: "Action.Cancel.Jump",
+    ActionCombatAttacking: "Action.Combat.Attacking",
 } as const;
 
 export type GameplayTagNamesValue = typeof GameplayTagNames[keyof typeof GameplayTagNames];
@@ -15,6 +16,9 @@ export const GameplayTags = {
         Cancel: {
             Dash: "Action.Cancel.Dash",
             Jump: "Action.Cancel.Jump"
+        },
+        Combat: {
+            Attacking: "Action.Combat.Attacking"
         }
     }
 } as const;

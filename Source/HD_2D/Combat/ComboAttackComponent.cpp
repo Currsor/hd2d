@@ -42,6 +42,24 @@ bool UComboAttackComponent::CanCancel(int32 StateIndex, FName ActionTag) const
     return ComboStates[StateIndex].CancelTags.HasTag(Tag);
 }
 
+void UComboAttackComponent::AddActiveTag(FName Tag)
+{
+    FGameplayTag GT = UGameplayTagsManager::Get().RequestGameplayTag(Tag, false);
+    if (GT.IsValid()) ActiveActionTags.AddTag(GT);
+}
+
+void UComboAttackComponent::RemoveActiveTag(FName Tag)
+{
+    FGameplayTag GT = UGameplayTagsManager::Get().RequestGameplayTag(Tag, false);
+    if (GT.IsValid()) ActiveActionTags.RemoveTag(GT);
+}
+
+bool UComboAttackComponent::HasActiveTag(FName Tag) const
+{
+    FGameplayTag GT = UGameplayTagsManager::Get().RequestGameplayTag(Tag, false);
+    return GT.IsValid() && ActiveActionTags.HasTag(GT);
+}
+
 #if WITH_EDITOR
 void UComboAttackComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {

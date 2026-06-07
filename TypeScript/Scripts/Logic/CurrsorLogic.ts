@@ -10,8 +10,7 @@ export class CurrsorLogic extends CharacterBaseLogic {
 
     private dashAbility!: DashAbility;
     private comboFSM!: GenericComboFSM;
-    private currentOverrideAction: any = null;
-    private lastAnimInstance: any = null;
+    private comboComp: any = null;
 
     Init(owner: UE.Object): void {
         super.Init(owner);
@@ -34,64 +33,25 @@ export class CurrsorLogic extends CharacterBaseLogic {
         const ComboType = loadUEType?.("/Script/HD_2D.ComboAttackComponent");
         const cls = ComboType?.StaticClass?.();
         const comboComp: any = cls ? actor?.GetComponentByClass(cls) : null;
+        this.comboComp = comboComp;
         console.log(`[CurrsorLogic] ComboComponent: ${comboComp ? '✓' : '❌ null'} (cls=${!!cls})`);
         console.log(`[CurrsorLogic] ComboComponent NotifyForwardList: ${JSON.stringify(comboComp?.NotifyForwardList ?? [])}`);
 
         this.comboFSM = new GenericComboFSM(comboComp, {
-            onEnterState: (_stateId, anim) => {
-                console.log(`[CurrsorLogic] onEnterState anim=${anim ? 'ok' : 'null'}`);
-                const seq = (anim as any)?.LoadSynchronous?.() ?? (anim as any);
-                console.log(`[CurrsorLogic] seq=${!!seq}, char=${!!character}`);
-                if (character && seq) {
-                    const zdChar = character as any;
-                    let inst = zdChar.GetAnimInstance?.() ?? zdChar.AnimInstance;
-                    if (!inst) {
-                        const comp = zdChar.GetComponentByClass?.(UE.PaperZDAnimationComponent?.StaticClass?.())
-                            ?? zdChar.AnimationComponent
-                            ?? zdChar.GetAnimationComponent?.();
-                        inst = comp?.GetAnimInstance?.() ?? comp?.AnimInstance;
-                    }
-                    console.log(`[CurrsorLogic] inst=${!!inst}, seq=${!!seq}`);
-                    if (inst) {
-                        this.lastAnimInstance = inst;
-                        const playActionClass = (UE as any).PaperZDPlaySlotOverrideAction;
-                        console.log(`[CurrsorLogic] playActionClass=${!!playActionClass}`);
-                        if (playActionClass && typeof playActionClass.PlayAnimationOverrideWithCallbacks === "function") {
-                            try {
-                                const action = playActionClass.PlayAnimationOverrideWithCallbacks(inst, seq, character, "DefaultSlot");
-                                this.currentOverrideAction = action ?? null;
-                            } catch (e) {
-                                console.warn(`[CurrsorLogic] PlayAnimationOverrideWithCallbacks failed: ${e}`);
-                                this.currentOverrideAction = null;
-                            }
-                        } else {
-                            const refFactory = (globalThis as any).$ref ?? (globalThis as any).puerts?.$ref;
-                            const duration = typeof refFactory === "function" ? refFactory(0) : 0;
-
-                            // 优先使用可取消的 PlaySlotOverride；如果不可用，
-                            // 不在 TS 侧直接播放不可取消的蒙太奇，改由 ABP 在 OnComboStateEnter 时播放（事件会携带动画资源）。
-                            console.log(`[CurrsorLogic] delegate animation playback to ABP via OnComboStateEnter`);
-                            this.currentOverrideAction = null;
-                        }
-                    } else {
-                            console.warn(`[CurrsorLogic] 无法获取 PaperZD AnimInstance，动画未播放`);
-                            this.lastAnimInstance = null;
-                        }
+            onEnterState: (_stateId, _anim) => {},
+            onExitCombo: () => {},
+            onExecuteBufferedAction: (action: string) => {
+                this.emitGlobal(EventTypes.OnComboStateExit, "");
+                if (action === GameplayTags.Action.Cancel.Jump) {
+                    const char = this.getOwnerAs<UE.CharacterBase>();
+                    const jumpZ = (char as any)?.CharacterMovement?.JumpZVelocity ?? 600;
+                    this.comboComp?.RemoveActiveTag("Action.Combat.Attacking");
+                    this.comboFSM.beginAction("Jump");
+                    if ((char as any)?.CharacterMovement?.IsMovingOnGround?.()) { char?.LaunchCharacter({X:0, Y:0, Z:jumpZ} as any, false, true); }
+                } else if (action === GameplayTags.Action.Cancel.Dash) {
+                    const ok = this.dashAbility.tryDash();
+                    if (ok) this.emitGlobal(EventTypes.OnDashStarted, "");
                 }
-            },
-            onExitCombo: () => { 
-                console.log(`[CurrsorLogic] combo exit`);
-                try {
-                    if (this.currentOverrideAction && this.currentOverrideAction.OnCancelled && typeof this.currentOverrideAction.OnCancelled.Broadcast === "function") {
-                        this.currentOverrideAction.OnCancelled.Broadcast();
-                    } else if (this.currentOverrideAction && typeof this.currentOverrideAction.OnAnimationOverrideEnd === "function") {
-                        this.currentOverrideAction.OnAnimationOverrideEnd(false);
-                    }
-                } catch (e) {
-                    console.warn(`[CurrsorLogic] cancel override action failed: ${e}`);
-                }
-                this.currentOverrideAction = null;
-                this.lastAnimInstance = null;
             },
         });
 
@@ -107,6 +67,19 @@ export class CurrsorLogic extends CharacterBaseLogic {
                 (otherActor as UE.Character).LaunchCharacter(knockVec, true, true);
             }
         );
+
+        // 动画通知回调 (C++ OnAnimNotify → HandleNotify → OnCombatNotify)
+        comboComp?.OnCombatNotify?.Add?.((notifyName: string) => {
+            const now = Date.now();
+            switch (notifyName) {
+                case "AN_HitStart":     this.comboFSM.onHitStart(); break;
+                case "AN_HitEnd":       this.comboFSM.onHitEnd(); break;
+                case "AN_ComboOpen":    this.comboFSM.onComboWindowOpen(now); break;
+                case "AN_ComboClose":   this.comboFSM.onComboWindowClose(now); break;
+                case "AN_CancelOpen":   this.comboFSM.onCancelOpen(); break;
+                case "AN_CancelClose":  this.comboFSM.onCancelClose(now); break;
+            }
+        });
 
         console.log(`[CurrsorLogic] Currsor init: ${owner.GetName()}`);
     }
@@ -126,7 +99,7 @@ export class CurrsorLogic extends CharacterBaseLogic {
         this.subscribeScoped(EventTypes.OnAttackHitEnd, () => this.comboFSM.onHitEnd(), { filter: S });
         this.subscribeScoped(EventTypes.OnComboWindowOpen, () => this.comboFSM.onComboWindowOpen(Date.now()), { filter: S });
         this.subscribeScoped(EventTypes.OnComboWindowClose, () => this.comboFSM.onComboWindowClose(Date.now()), { filter: S });
-        this.subscribeScoped(EventTypes.OnCancelWindowOpen, () => this.comboFSM.onCancelOpen(), { filter: S });
+        this.subscribeScoped(EventTypes.OnCancelWindowOpen, () => { console.log("[CurrsorLogic] CancelWindowOpen received"); this.comboFSM.onCancelOpen(); }, { filter: S });
         this.subscribeScoped(EventTypes.OnCancelWindowClose, () => this.comboFSM.onCancelClose(Date.now()), { filter: S });
         this.subscribeScoped(EventTypes.OnLanded, this.onLanded.bind(this), { filter: ScopeFilter.ANY });
     }
@@ -146,30 +119,18 @@ export class CurrsorLogic extends CharacterBaseLogic {
         if (cancel) {
             const ok = this.dashAbility.tryDash();
             console.log(`[CurrsorLogic] dash try=${ok}`);
-            if (ok) {
-                this.emitGlobal(EventTypes.OnDashStarted, "");
-                try {
-                        if (this.lastAnimInstance && typeof this.lastAnimInstance.JumpToNode === "function") {
-                            this.lastAnimInstance.JumpToNode("EnterDash");
-                            // Retry in next tick in case override/playback re-applies immediately
-                            try {
-                                const timerFn = () => {
-                                    try { this.lastAnimInstance?.JumpToNode("EnterDash"); } catch (e) { /* swallow */ }
-                                };
-                                if (typeof (globalThis as any).setTimeout === "function") (globalThis as any).setTimeout(timerFn, 0);
-                            } catch (e) { /* ignore */ }
-                        }
-                } catch (e) {
-                    console.warn(`[CurrsorLogic] force JumpToNode EnterDash failed: ${e}`);
-                }
-            }
+            if (ok) this.emitGlobal(EventTypes.OnDashStarted, "");
         }
     }
 
     private onJump(): void {
         if (!this.isActive) return;
         if (this.comboFSM.tryCancel(GameplayTags.Action.Cancel.Jump, Date.now())) {
+            const char = this.getOwnerAs<UE.CharacterBase>();
+            const jumpZ = (char as any)?.CharacterMovement?.JumpZVelocity ?? 600;
+            this.comboComp?.RemoveActiveTag("Action.Combat.Attacking");
             this.comboFSM.beginAction("Jump");
+            if ((char as any)?.CharacterMovement?.IsMovingOnGround?.()) { char?.LaunchCharacter({X:0, Y:0, Z:jumpZ} as any, false, true); }
         }
     }
 

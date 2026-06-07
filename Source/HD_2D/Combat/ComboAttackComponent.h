@@ -107,6 +107,21 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combo")
     bool CanCancel(int32 StateIndex, FName ActionTag) const;
 
+    // ── 动作锁定 (ActiveActionTags) ──
+
+    /** 当前激活的动作标签 (TS 写入, C++ Move/Jump/Dash 读取) */
+    UPROPERTY(BlueprintReadOnly, Transient, Category = "Combo|Runtime")
+    FGameplayTagContainer ActiveActionTags;
+
+    UFUNCTION(BlueprintCallable)
+    void AddActiveTag(FName Tag);
+
+    UFUNCTION(BlueprintCallable)
+    void RemoveActiveTag(FName Tag);
+
+    UFUNCTION(BlueprintCallable)
+    bool HasActiveTag(FName Tag) const;
+
 #if WITH_EDITOR
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif

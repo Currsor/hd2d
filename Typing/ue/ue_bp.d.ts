@@ -10686,7 +10686,7 @@ declare module "ue" {
     }
 
 // __TYPE_DECL_END
-// __TYPE_DECL_START: 4C361E5D0148E2B0D3111C93434C566F
+// __TYPE_DECL_START: 7A29AA508B42735BD58E899FEB18130B
     namespace Game.Blueprints.Player.Currsor.BP_Currsor {
         class BP_Currsor_C extends UE.Game.Blueprints.Player.Base.BP_CharacterBase.BP_CharacterBase_C {
             constructor(Outer?: Object, Name?: string, ObjectFlags?: number);
@@ -10760,35 +10760,39 @@ declare module "ue" {
     }
 
 // __TYPE_DECL_END
-// __TYPE_DECL_START: E699311F4E4F2ED66F3C36B320A211ED
+// __TYPE_DECL_START: 5F9D2B777F43F66A53B61B88811D6FAB
     namespace Game.Blueprints.Player.Currsor.Anim.ABP_Currsor {
         class ABP_Currsor_C extends UE.PaperZDAnimInstance {
             constructor(Outer?: Object, Name?: string, ObjectFlags?: number);
             UberGraphFrame: UE.PointerToUberGraphFrame;
-            PaperZDAnimGraphNode_Sink_9: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_Sink_10: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_PlaySequence_8: UE.PaperZDAnimNode_PlaySequence;
-            PaperZDAnimGraphNode_Sink_8: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_Sink_9: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_PlaySequence_7: UE.PaperZDAnimNode_PlaySequence;
-            PaperZDAnimGraphNode_Sink_7: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_Sink_8: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_PlaySequence_6: UE.PaperZDAnimNode_PlaySequence;
-            PaperZDAnimGraphNode_Sink_6: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_Sink_7: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_PlaySequence_5: UE.PaperZDAnimNode_PlaySequence;
-            PaperZDAnimGraphNode_Sink_5: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_Sink_6: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_PlaySequence_4: UE.PaperZDAnimNode_PlaySequence;
-            PaperZDAnimGraphNode_Sink_4: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_Sink_5: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_PlaySequence_3: UE.PaperZDAnimNode_PlaySequence;
-            PaperZDAnimGraphNode_Sink_3: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_Sink_4: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_StateMachine_1: UE.PaperZDAnimNode_StateMachine;
+            PaperZDAnimGraphNode_OverrideSlot: UE.PaperZDAnimNode_OverrideSlot;
+            PaperZDAnimGraphNode_CacheAnimation_1: UE.PaperZDAnimNode_CacheAnimation;
+            PaperZDAnimGraphNode_SetDirectionality: UE.PaperZDAnimNode_SetDirectionality;
             PaperZDAnimGraphNode_PlaySequence_2: UE.PaperZDAnimNode_PlaySequence;
-            PaperZDAnimGraphNode_Sink_2: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_Sink_3: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_PlaySequence_1: UE.PaperZDAnimNode_PlaySequence;
-            PaperZDAnimGraphNode_Sink_1: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_Sink_2: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_PlaySequence: UE.PaperZDAnimNode_PlaySequence;
+            PaperZDAnimGraphNode_Sink_1: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_UseCachedAnimation_1: UE.PaperZDAnimNode_UseCachedAnimation;
             PaperZDAnimGraphNode_Sink: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_StateMachine: UE.PaperZDAnimNode_StateMachine;
-            PaperZDAnimGraphNode_OverrideSlot: UE.PaperZDAnimNode_OverrideSlot;
             PaperZDAnimGraphNode_CacheAnimation: UE.PaperZDAnimNode_CacheAnimation;
             PaperZDAnimGraphNode_UseCachedAnimation: UE.PaperZDAnimNode_UseCachedAnimation;
-            PaperZDAnimGraphNode_SetDirectionality: UE.PaperZDAnimNode_SetDirectionality;
             Currsor: UE.Game.Blueprints.Player.Currsor.BP_Currsor.BP_Currsor_C;
             ["Character Movement"]: UE.CharacterMovementComponent;
             ShouldMove: boolean;
@@ -10815,12 +10819,15 @@ declare module "ue" {
             ReceiveNotify_AN_HitStart() : void;
             ZDRule_Transition(bCanEnterTransition: $Ref<boolean>) : void;
             ZDRule_Transition_1(bCanEnterTransition: $Ref<boolean>) : void;
+            ZDRule_Transition_10(bCanEnterTransition: $Ref<boolean>) : void;
             ZDRule_Transition_2(bCanEnterTransition: $Ref<boolean>) : void;
             ZDRule_Transition_3(bCanEnterTransition: $Ref<boolean>) : void;
             ZDRule_Transition_4(bCanEnterTransition: $Ref<boolean>) : void;
             ZDRule_Transition_5(bCanEnterTransition: $Ref<boolean>) : void;
+            ZDRule_Transition_6(bCanEnterTransition: $Ref<boolean>) : void;
             ZDRule_Transition_7(bCanEnterTransition: $Ref<boolean>) : void;
             ZDRule_Transition_8(bCanEnterTransition: $Ref<boolean>) : void;
+            ZDRule_Transition_9(bCanEnterTransition: $Ref<boolean>) : void;
             static StaticClass(): Class;
             static Find(OrigInName: string, Outer?: Object): ABP_Currsor_C;
             static Load(InName: string): ABP_Currsor_C;

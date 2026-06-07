@@ -12,6 +12,7 @@ import { EventTypes } from "../Config/EventTypes";
 
 const BUFFER_TTL_MS = 500;
 const MAX_BUFFER_SIZE = 3;
+const STATE_TIMEOUT_MS = 2000;  // 攻击状态超时（未收到 AN）自动退出
 
 type ActionName = string;
 
@@ -28,6 +29,8 @@ const EComboTrigger = (() => {
 export interface ComboFSMCallbacks {
     onEnterState: (stateId: string, anim: any) => void;
     onExitCombo: () => void;
+    /** 缓冲动作被消费时需要外部执行（如 Jump/Dash 等非攻击动作） */
+    onExecuteBufferedAction: (action: string) => void;
 }
 
 export class GenericComboFSM {
@@ -40,6 +43,7 @@ export class GenericComboFSM {
     private comboWindowOpen: boolean = false;
     private cooldownRemaining: number = 0;
     private activeTags: Set<string> = new Set();
+    private lastNotifyTime: number = 0;  // 上一次收到 AN 的时间戳
 
     private inputMap: Map<number, number> = new Map();
     private timeoutMap: Map<number, number> = new Map();
@@ -132,7 +136,8 @@ export class GenericComboFSM {
     }
 
     onCancelOpen(): void {
-        if (this.currentIdx < 0) return;
+        if (this.currentIdx < 0) { console.log("[ComboFSM] onCancelOpen skipped: idx<0"); return; }
+        console.log("[ComboFSM] onCancelOpen fired");
         this.cancelWindowOpen = true;
         this.consumeBufferAction(a => a !== "Attack");
     }
@@ -164,6 +169,11 @@ export class GenericComboFSM {
 
     tick(dt: number, now: number): void {
         if (this.cooldownRemaining > 0) { this.cooldownRemaining -= dt; if (this.cooldownRemaining < 0) this.cooldownRemaining = 0; }
+        // 攻击状态超时保护
+        if (this.currentIdx >= 0 && Date.now() - this.lastNotifyTime > STATE_TIMEOUT_MS) {
+            console.log("[ComboFSM] state timeout, forceEnd");
+            this.forceEnd();
+        }
         this.buffer = this.buffer.filter(b => now - b.timestamp < BUFFER_TTL_MS);
     }
 
@@ -279,6 +289,7 @@ export class GenericComboFSM {
 
         this.currentIdx = idx;
         this.cancelWindowOpen = false;
+        this.lastNotifyTime = Date.now();
         const seg = (this.component?.ComboStates?.Get(idx) as any);
         const stateId = `State_${idx}`; // 用 idx 作为 StateId，确保有效值
         this.callbacks.onEnterState(stateId, seg?.AttackAnimation);

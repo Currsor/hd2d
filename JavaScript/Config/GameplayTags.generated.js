@@ -8,12 +8,16 @@ exports.GameplayTags = exports.GameplayTagNames = void 0;
 exports.GameplayTagNames = {
     ActionCancelDash: "Action.Cancel.Dash",
     ActionCancelJump: "Action.Cancel.Jump",
+    ActionCombatAttacking: "Action.Combat.Attacking",
 };
 exports.GameplayTags = {
     Action: {
         Cancel: {
             Dash: "Action.Cancel.Dash",
             Jump: "Action.Cancel.Jump"
+        },
+        Combat: {
+            Attacking: "Action.Combat.Attacking"
         }
     }
 };

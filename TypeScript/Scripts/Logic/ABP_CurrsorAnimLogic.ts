@@ -37,6 +37,14 @@ export class ABP_CurrsorAnimLogic extends GameObjectBase {
     private characterResolved: boolean = false;
 
     /** 缓存最后一次有效的朝向值（停止移动时保持最后朝向） */
+    private getComboComp(): any {
+        if (!this.character) return null;
+        const loadUEType = (globalThis as any).puerts?.loadUEType;
+        const ComboType = loadUEType?.("/Script/HD_2D.ComboAttackComponent");
+        const cls = ComboType?.StaticClass?.();
+        return cls ? this.character?.GetComponentByClass(cls) : null;
+    }
+
     private lastOrientationX: number = 1;
 
     /** 前一帧角色是否着地 */
@@ -93,9 +101,7 @@ export class ABP_CurrsorAnimLogic extends GameObjectBase {
         this.subscribeScoped(EventTypes.OnComboStateEnter, (stateId?: string, anim?: any) => {
             console.log(`[ABP_CurrsorAnimLogic] ComboStateEnter stateId=${stateId} anim=${!!anim}`);
             this.attackLocked = true;
-            if (this.character && typeof (this.character as any).SetAttackLock === "function") {
-                (this.character as any).SetAttackLock(true);
-            }
+            this.getComboComp()?.AddActiveTag("Action.Combat.Attacking");
             // 如果事件携带 anim 资源，优先使用可取消的 PlaySlotOverride 播放
             if (anim) {
                 try {
@@ -144,9 +150,7 @@ export class ABP_CurrsorAnimLogic extends GameObjectBase {
             } catch (e) { /* ignore */ }
             this.playingOverrideAction = null;
             this.attackLocked = false;
-            if (this.character && typeof (this.character as any).SetAttackLock === "function") {
-                (this.character as any).SetAttackLock(false);
-            }
+            this.getComboComp()?.RemoveActiveTag("Action.Combat.Attacking");
         }, { filter: ScopeFilter.ANY });
     }
 

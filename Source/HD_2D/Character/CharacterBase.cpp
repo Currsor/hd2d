@@ -7,6 +7,16 @@
 #include "Components/BoxComponent.h"
 #include "../Combat/ComboAttackComponent.h"
 
+
+static bool IsCombatBlocked(AActor* Owner, FName ActionTag)
+{
+    if (UActorComponent* Comp = Owner->GetComponentByClass(UComboAttackComponent::StaticClass()))
+    {
+        return Cast<UComboAttackComponent>(Comp)->HasActiveTag(ActionTag);
+    }
+    return false;
+}
+
 ACharacterBase::ACharacterBase()
 {
     PrimaryActorTick.bCanEverTick = true;
@@ -74,7 +84,7 @@ void ACharacterBase::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 void ACharacterBase::Move(const FInputActionValue& Value)
 {
     if (!Controller) return;
-    if (bAttackLocked) return;
+    if (IsCombatBlocked(this, TEXT("Action.Combat.Attacking"))) return;
 
     const FVector2D MovementVector = Value.Get<FVector2D>();
 
@@ -168,6 +178,14 @@ void ACharacterBase::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8
 
 void ACharacterBase::Jump()
 {
+    if (IsCombatBlocked(this, TEXT("Action.Combat.Attacking")))
+    {
+        OnJumpTriggered();
+        return;
+    }
+
+    if (!CanJump()) return;
+
     if (bInCoyoteWindow)
     {
         // 土狼时间窗口内：临时切回 Walking 让 Super::Jump() 通过 CanJump 检查
@@ -187,6 +205,7 @@ void ACharacterBase::Jump()
 
 void ACharacterBase::Dash()
 {
+	if (IsCombatBlocked(this, "Action.Combat.Attacking")) { OnDashTriggered(); return; }
     // TODO: 冲刺机制的具体实现（冲刺速度、冷却、距离等）
 
     // 通知蓝图侧冲刺已触发（蓝图实现后转发到 TS 动画逻辑）
@@ -195,10 +214,7 @@ void ACharacterBase::Dash()
 
 void ACharacterBase::Attack()
 {
-    // 攻击逻辑由 TS 层 ComboAttackAbility 状态机驱动
-    // 此处仅将输入事件转发到蓝图侧，再由蓝图转发到 TS
-
-    // 通知蓝图侧攻击已触发（蓝图实现后转发到 TS 逻辑层）
+    // TS 入状态时设 AddActiveTag, 不在此处设置
     OnAttackTriggered();
 }
 
