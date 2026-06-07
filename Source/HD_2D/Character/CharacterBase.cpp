@@ -4,15 +4,27 @@
 #include "EnhancedInputComponent.h"
 #include "PlayerInputDataAsset.h"
 #include "HDPlayerController.h"
+#include "Components/BoxComponent.h"
+#include "../Combat/ComboAttackComponent.h"
 
 ACharacterBase::ACharacterBase()
 {
-    // 设置默认值
     PrimaryActorTick.bCanEverTick = true;
     bIsActive = false;
     bWasOnGround = true;
     LeftGroundTimestamp = 0.f;
     bInCoyoteWindow = false;
+    Orientation = FVector2D(1.0f, 0.0f);
+
+    // 攻击碰撞盒 — 默认不产生碰撞，由 ComboComponent.bHitActive 控制伤害
+    AttackCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("AttackCollision"));
+    AttackCollision->SetupAttachment(RootComponent);
+    AttackCollision->SetBoxExtent(FVector(50, 60, 30));
+    AttackCollision->SetRelativeLocation(FVector(40, 0, 0));
+    AttackCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    AttackCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
+    AttackCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+    AttackCollision->SetGenerateOverlapEvents(true);
     Orientation = FVector2D(1.0f, 0.0f); // 默认向前
 }
 
@@ -62,6 +74,7 @@ void ACharacterBase::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 void ACharacterBase::Move(const FInputActionValue& Value)
 {
     if (!Controller) return;
+    if (bAttackLocked) return;
 
     const FVector2D MovementVector = Value.Get<FVector2D>();
 
@@ -73,6 +86,11 @@ void ACharacterBase::Move(const FInputActionValue& Value)
 
     AddMovementInput(ForwardDirection, MovementVector.Y);
     AddMovementInput(RightDirection, MovementVector.X);
+}
+
+void ACharacterBase::SetAttackLock(bool bLocked)
+{
+    bAttackLocked = bLocked;
 }
 
 void ACharacterBase::SetActive(bool bActive)
@@ -182,4 +200,15 @@ void ACharacterBase::Attack()
 
     // 通知蓝图侧攻击已触发（蓝图实现后转发到 TS 逻辑层）
     OnAttackTriggered();
+}
+
+void ACharacterBase::OnAnimNotify(FName NotifyName)
+{
+    UE_LOG(LogTemp, Log, TEXT("[CharacterBase] OnAnimNotify: %s"), *NotifyName.ToString());
+
+    // 转发到 ComboAttackComponent（如果存在）
+    if (UActorComponent* Comp = GetComponentByClass(UComboAttackComponent::StaticClass()))
+    {
+        Cast<UComboAttackComponent>(Comp)->HandleNotify(NotifyName);
+    }
 }

@@ -3,53 +3,40 @@
  * 定义角色管理系统中 TypeScript 侧使用的所有类型结构
  */
 
-// ==================== 枚举定义 ====================
+import { getUEEnumValue, loadUEEnum } from "../Bridge/SubsystemBridge";
+
+// ==================== 枚举定义（运行时绑定） ====================
 
 /** 角色切换状态（与 C++ ERoleSwitchState 对应） */
-export enum ERoleSwitchState {
-    /** 空闲，未在切换 */
-    Idle = 0,
-    /** 切换请求已受理，正在执行前置校验 */
-    Validating = 1,
-    /** 正在解绑旧角色 */
-    Unbinding = 2,
-    /** 正在激活新角色 */
-    Activating = 3,
-    /** 切换完成 */
-    Completed = 4,
-    /** 切换失败，正在回滚 */
-    RollingBack = 5,
-}
+const ERoleSwitchStateEnum = loadUEEnum("/Script/HD_2D.ERoleSwitchState");
+export const ERoleSwitchState = {
+    Idle: getUEEnumValue(ERoleSwitchStateEnum, "Idle", 0),
+    Validating: getUEEnumValue(ERoleSwitchStateEnum, "Validating", 1),
+    Unbinding: getUEEnumValue(ERoleSwitchStateEnum, "Unbinding", 2),
+    Activating: getUEEnumValue(ERoleSwitchStateEnum, "Activating", 3),
+    Completed: getUEEnumValue(ERoleSwitchStateEnum, "Completed", 4),
+    RollingBack: getUEEnumValue(ERoleSwitchStateEnum, "RollingBack", 5),
+} as const;
+export type ERoleSwitchState = typeof ERoleSwitchState[keyof typeof ERoleSwitchState];
 
 /** 角色切换失败原因（与 C++ ERoleSwitchFailReason 对应） */
-export enum ERoleSwitchFailReason {
-    /** 无失败 */
-    None = 0,
-    /** 子系统未初始化 */
-    SubsystemNotReady = 1,
-    /** 目标角色 ID 不存在 */
-    TargetNotFound = 2,
-    /** 目标角色不可用 */
-    TargetUnavailable = 3,
-    /** 当前角色不允许切换 */
-    CurrentNotSwitchable = 4,
-    /** 已有切换流程正在进行 */
-    SwitchInProgress = 5,
-    /** 目标与当前相同 */
-    SameAsCurrent = 6,
-    /** 前置校验失败 */
-    ValidationFailed = 7,
-    /** 解绑旧角色失败 */
-    UnbindFailed = 8,
-    /** 激活新角色失败 */
-    ActivateFailed = 9,
-    /** 角色类引用无效 */
-    InvalidClassReference = 10,
-    /** 角色生成失败 */
-    SpawnFailed = 11,
-    /** 桥接层错误（TS 侧特有） */
-    BridgeError = 100,
-}
+const ERoleSwitchFailReasonEnum = loadUEEnum("/Script/HD_2D.ERoleSwitchFailReason");
+export const ERoleSwitchFailReason = {
+    None: getUEEnumValue(ERoleSwitchFailReasonEnum, "None", 0),
+    SubsystemNotReady: getUEEnumValue(ERoleSwitchFailReasonEnum, "SubsystemNotReady", 1),
+    TargetNotFound: getUEEnumValue(ERoleSwitchFailReasonEnum, "TargetNotFound", 2),
+    TargetUnavailable: getUEEnumValue(ERoleSwitchFailReasonEnum, "TargetUnavailable", 3),
+    CurrentNotSwitchable: getUEEnumValue(ERoleSwitchFailReasonEnum, "CurrentNotSwitchable", 4),
+    SwitchInProgress: getUEEnumValue(ERoleSwitchFailReasonEnum, "SwitchInProgress", 5),
+    SameAsCurrent: getUEEnumValue(ERoleSwitchFailReasonEnum, "SameAsCurrent", 6),
+    ValidationFailed: getUEEnumValue(ERoleSwitchFailReasonEnum, "ValidationFailed", 7),
+    UnbindFailed: getUEEnumValue(ERoleSwitchFailReasonEnum, "UnbindFailed", 8),
+    ActivateFailed: getUEEnumValue(ERoleSwitchFailReasonEnum, "ActivateFailed", 9),
+    InvalidClassReference: getUEEnumValue(ERoleSwitchFailReasonEnum, "InvalidClassReference", 10),
+    SpawnFailed: getUEEnumValue(ERoleSwitchFailReasonEnum, "SpawnFailed", 11),
+    BridgeError: 100,  // TS 侧特有扩展
+} as const;
+export type ERoleSwitchFailReason = typeof ERoleSwitchFailReason[keyof typeof ERoleSwitchFailReason];
 
 // ==================== 结构定义 ====================
 

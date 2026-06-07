@@ -1,9 +1,64 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ABP_CurrsorAnimLogic = void 0;
+/**
+ * ==========================================
+ *   ABP_Currsor 动画蓝图状态同步逻辑
+ * ==========================================
+ *
+ * 使用现有 Mixin 逻辑分发架构（BFL_JSLogic → LogicManager → EventBus）
+ * 实现动画蓝图变量的自动同步。
+ *
+ * 蓝图侧使用流程：
+ *   1. ABP_Currsor 的 OnInit 中调用：
+ *      InitializeLogic(Self, "ABP_CurrsorAnim")
+ *      → 返回 logicId，保存到蓝图变量中
+ *
+ *   2. ABP_Currsor 的 OnTick 中调用：
+ *      EmitEventByOwner(Self, "OnTick", DeltaTime)
+ *      → TS 侧自动计算状态并写回 ShouldMove 等变量
+ *
+ * 注入路径：无需 blueprint.mixin，完全通过蓝图函数库 BFL_JSLogic 驱动
+ */
+const UE = __importStar(require("ue"));
 const GameObjectBase_1 = require("../Mixin/GameObjectBase");
-const EventTypes_1 = require("../Config/EventTypes");
+const EventBus_1 = require("../Mixin/EventBus");
 const EventContext_1 = require("../Mixin/EventContext");
+const EventTypes_1 = require("../Config/EventTypes");
+const EventContext_2 = require("../Mixin/EventContext");
 const AnimStateSync_1 = require("../Anim/AnimStateSync");
 class ABP_CurrsorAnimLogic extends GameObjectBase_1.GameObjectBase {
     /** 缓存的角色引用（从动画蓝图实例的 Currsor 属性获取） */
@@ -12,6 +67,11 @@ class ABP_CurrsorAnimLogic extends GameObjectBase_1.GameObjectBase {
     characterResolved = false;
     /** 缓存最后一次有效的朝向值（停止移动时保持最后朝向） */
     lastOrientationX = 1;
+    /** 前一帧角色是否着地 */
+    wasOnGround = true;
+    /** 动画驱动的攻击锁（为 true 时禁止移动写回） */
+    attackLocked = false;
+    playingOverrideAction = null;
     Init(owner) {
         super.Init(owner);
         console.log(`[ABP_CurrsorAnimLogic] 动画逻辑初始化: ${owner.GetName()}`);
@@ -24,30 +84,93 @@ class ABP_CurrsorAnimLogic extends GameObjectBase_1.GameObjectBase {
     OnSetup() {
         // 订阅 OnTick 事件（接收自身实例级 + 全局 OnTick）
         this.subscribeScoped(EventTypes_1.EventTypes.OnTick, this.onAnimTick.bind(this), {
-            filter: EventContext_1.ScopeFilter.SELF_AND_GLOBAL,
+            filter: EventContext_2.ScopeFilter.SELF_AND_GLOBAL,
         });
         // 订阅 OnJump 事件（玩家主动触发 IA_Jump 时由蓝图转发）
         // 使用 ANY 过滤器：因为事件由 BP_Currsor（角色蓝图）发出，
         // 其 scope 是 CurrsorLogic 的 logicId，与本实例（ABP_CurrsorAnim）的 logicId 不同，
         // 所以需要 ANY 才能跨实例接收
         this.subscribeScoped(EventTypes_1.EventTypes.OnJump, this.onJump.bind(this), {
-            filter: EventContext_1.ScopeFilter.ANY,
+            filter: EventContext_2.ScopeFilter.ANY,
         });
         // 订阅 OnDashStarted 事件（CurrsorLogic 在 tryDash 成功后发出）
         // 只有冲刺真正执行（非 CD 中）才会触发动画
         // 使用 ANY 过滤器：因为事件由 CurrsorLogic 发出，scope 与本实例不同
         this.subscribeScoped(EventTypes_1.EventTypes.OnDashStarted, this.onDash.bind(this), {
-            filter: EventContext_1.ScopeFilter.ANY,
+            filter: EventContext_2.ScopeFilter.ANY,
         });
         // 订阅连击攻击开始事件（CurrsorLogic 在 comboAttack.onAttackStart 回调中发出）
         // payload: comboIndex (1/2/3)
         this.subscribeScoped(EventTypes_1.EventTypes.OnComboAttackStart, this.onComboAttackStart.bind(this), {
-            filter: EventContext_1.ScopeFilter.ANY,
+            filter: EventContext_2.ScopeFilter.ANY,
         });
         // 订阅连击结束事件（CurrsorLogic 在 comboAttack.onComboEnd 回调中发出）
         this.subscribeScoped(EventTypes_1.EventTypes.OnComboEnd, this.onComboEnd.bind(this), {
-            filter: EventContext_1.ScopeFilter.ANY,
+            filter: EventContext_2.ScopeFilter.ANY,
         });
+        // 订阅动画驱动的 ComboState 进入/退出（由 FSM 或 ABP 发出），用于在动画期间锁定移动
+        this.subscribeScoped(EventTypes_1.EventTypes.OnComboStateEnter, (stateId, anim) => {
+            console.log(`[ABP_CurrsorAnimLogic] ComboStateEnter stateId=${stateId} anim=${!!anim}`);
+            this.attackLocked = true;
+            if (this.character && typeof this.character.SetAttackLock === "function") {
+                this.character.SetAttackLock(true);
+            }
+            // 如果事件携带 anim 资源，优先使用可取消的 PlaySlotOverride 播放
+            if (anim) {
+                try {
+                    const animInst = this.getAnimInstance();
+                    if (animInst) {
+                        const playActionClass = UE.PaperZDPlaySlotOverrideAction;
+                        if (playActionClass && typeof playActionClass.PlayAnimationOverrideWithCallbacks === "function") {
+                            try {
+                                const ownerObj = this.getOwnerAs();
+                                const action = playActionClass.PlayAnimationOverrideWithCallbacks(animInst, anim, ownerObj, "DefaultSlot");
+                                this.playingOverrideAction = action ?? null;
+                                console.log(`[ABP_CurrsorAnimLogic] PlayComboAnim action=${!!this.playingOverrideAction}`);
+                                return;
+                            }
+                            catch (e) {
+                                console.warn(`[ABP_CurrsorAnimLogic] PlayAnimationOverrideWithCallbacks failed: ${e}`);
+                            }
+                        }
+                    }
+                }
+                catch (e) {
+                    console.warn(`[ABP_CurrsorAnimLogic] Play combo anim failed: ${e}`);
+                }
+            }
+            if (stateId) {
+                try {
+                    const animInst = this.getAnimInstance();
+                    if (!animInst)
+                        return;
+                    // State_N → EnterAttack(N+1)，即 State_0 → EnterAttack1
+                    const match = stateId.match(/State_(\d+)/);
+                    if (match) {
+                        const nodeName = `EnterAttack${parseInt(match[1]) + 1}`;
+                        console.log(`[ABP_CurrsorAnimLogic] JumpToNode ${nodeName} (from ${stateId})`);
+                        animInst.JumpToNode(nodeName);
+                    }
+                }
+                catch (e) {
+                    console.warn(`[ABP_CurrsorAnimLogic] JumpToNode failed: ${e}`);
+                }
+            }
+        }, { filter: EventContext_2.ScopeFilter.ANY });
+        // 当连击结束时，清掉 Slot 覆盖 + 解锁移动
+        this.subscribeScoped(EventTypes_1.EventTypes.OnComboStateExit, (_prevIdx) => {
+            console.log(`[ABP_CurrsorAnimLogic] ComboStateExit`);
+            try {
+                const animInst = this.getAnimInstance();
+                animInst?.StopAnimationOverride?.("DefaultSlot");
+            }
+            catch (e) { /* ignore */ }
+            this.playingOverrideAction = null;
+            this.attackLocked = false;
+            if (this.character && typeof this.character.SetAttackLock === "function") {
+                this.character.SetAttackLock(false);
+            }
+        }, { filter: EventContext_2.ScopeFilter.ANY });
     }
     /**
      * 对象池复用时重置状态
@@ -56,6 +179,8 @@ class ABP_CurrsorAnimLogic extends GameObjectBase_1.GameObjectBase {
         this.character = null;
         this.characterResolved = false;
         this.lastOrientationX = 1;
+        this.wasOnGround = true;
+        this.attackLocked = false;
     }
     // ======================== 核心逻辑 ========================
     /**
@@ -81,6 +206,11 @@ class ABP_CurrsorAnimLogic extends GameObjectBase_1.GameObjectBase {
         }
         // 计算动画状态
         const state = (0, AnimStateSync_1.computeAnimState)(this.character);
+        if (!this.wasOnGround && state.isOnGround) {
+            EventBus_1.EventBus.getInstance().emitScoped(EventTypes_1.EventTypes.OnLanded, -1, EventContext_1.GLOBAL_SCOPE, []);
+            console.log(`[ABP_CurrsorAnimLogic] OnLanded emitted`);
+        }
+        this.wasOnGround = state.isOnGround;
         // 写回动画蓝图变量
         this.applyStateToAnimInstance(animInst, state);
     }
@@ -108,6 +238,7 @@ class ABP_CurrsorAnimLogic extends GameObjectBase_1.GameObjectBase {
         if (!animInst)
             return;
         try {
+            console.log(`[ABP_CurrsorAnimLogic] onDash JumpToNode EnterDash`);
             animInst.JumpToNode("EnterDash");
         }
         catch (e) {
@@ -211,7 +342,7 @@ class ABP_CurrsorAnimLogic extends GameObjectBase_1.GameObjectBase {
         try {
             // ShouldMove —— 驱动 Idle ↔ Walk 状态机过渡
             if ("ShouldMove" in animInst) {
-                animInst.ShouldMove = state.shouldMove;
+                animInst.ShouldMove = this.attackLocked ? false : state.shouldMove;
             }
             // bIsFalling —— 角色是否在下落
             if ("bIsFalling" in animInst) {

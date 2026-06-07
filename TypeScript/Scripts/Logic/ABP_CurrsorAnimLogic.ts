@@ -19,6 +19,8 @@
  */
 import * as UE from "ue";
 import { GameObjectBase } from "../Mixin/GameObjectBase";
+import { EventBus } from "../Mixin/EventBus";
+import { GLOBAL_SCOPE } from "../Mixin/EventContext";
 import { EventTypes } from "../Config/EventTypes";
 import { ScopeFilter } from "../Mixin/EventContext";
 import { computeAnimState, AnimState } from "../Anim/AnimStateSync";
@@ -36,6 +38,13 @@ export class ABP_CurrsorAnimLogic extends GameObjectBase {
 
     /** 缓存最后一次有效的朝向值（停止移动时保持最后朝向） */
     private lastOrientationX: number = 1;
+
+    /** 前一帧角色是否着地 */
+    private wasOnGround: boolean = true;
+
+    /** 动画驱动的攻击锁（为 true 时禁止移动写回） */
+    private attackLocked: boolean = false;
+    private playingOverrideAction: any = null;
 
     Init(owner: UE.Object): void {
         super.Init(owner);
@@ -79,6 +88,66 @@ export class ABP_CurrsorAnimLogic extends GameObjectBase {
         this.subscribeScoped(EventTypes.OnComboEnd, this.onComboEnd.bind(this), {
             filter: ScopeFilter.ANY,
         });
+
+        // 订阅动画驱动的 ComboState 进入/退出（由 FSM 或 ABP 发出），用于在动画期间锁定移动
+        this.subscribeScoped(EventTypes.OnComboStateEnter, (stateId?: string, anim?: any) => {
+            console.log(`[ABP_CurrsorAnimLogic] ComboStateEnter stateId=${stateId} anim=${!!anim}`);
+            this.attackLocked = true;
+            if (this.character && typeof (this.character as any).SetAttackLock === "function") {
+                (this.character as any).SetAttackLock(true);
+            }
+            // 如果事件携带 anim 资源，优先使用可取消的 PlaySlotOverride 播放
+            if (anim) {
+                try {
+                    const animInst = this.getAnimInstance();
+                    if (animInst) {
+                        const playActionClass = (UE as any).PaperZDPlaySlotOverrideAction;
+                        if (playActionClass && typeof playActionClass.PlayAnimationOverrideWithCallbacks === "function") {
+                            try {
+                                const ownerObj = this.getOwnerAs<UE.Object>();
+                                const action = playActionClass.PlayAnimationOverrideWithCallbacks(animInst, anim, ownerObj, "DefaultSlot");
+                                this.playingOverrideAction = action ?? null;
+                                console.log(`[ABP_CurrsorAnimLogic] PlayComboAnim action=${!!this.playingOverrideAction}`);
+                                return;
+                            } catch (e) {
+                                console.warn(`[ABP_CurrsorAnimLogic] PlayAnimationOverrideWithCallbacks failed: ${e}`);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`[ABP_CurrsorAnimLogic] Play combo anim failed: ${e}`);
+                }
+            }
+            if (stateId) {
+                try {
+                    const animInst = this.getAnimInstance();
+                    if (!animInst) return;
+                    // State_N → EnterAttack(N+1)，即 State_0 → EnterAttack1
+                    const match = stateId.match(/State_(\d+)/);
+                    if (match) {
+                        const nodeName = `EnterAttack${parseInt(match[1]) + 1}`;
+                        console.log(`[ABP_CurrsorAnimLogic] JumpToNode ${nodeName} (from ${stateId})`);
+                        animInst.JumpToNode(nodeName);
+                    }
+                } catch (e) {
+                    console.warn(`[ABP_CurrsorAnimLogic] JumpToNode failed: ${e}`);
+                }
+            }
+        }, { filter: ScopeFilter.ANY });
+
+        // 当连击结束时，清掉 Slot 覆盖 + 解锁移动
+        this.subscribeScoped(EventTypes.OnComboStateExit, (_prevIdx?: number) => {
+            console.log(`[ABP_CurrsorAnimLogic] ComboStateExit`);
+            try {
+                const animInst = this.getAnimInstance();
+                (animInst as any)?.StopAnimationOverride?.("DefaultSlot");
+            } catch (e) { /* ignore */ }
+            this.playingOverrideAction = null;
+            this.attackLocked = false;
+            if (this.character && typeof (this.character as any).SetAttackLock === "function") {
+                (this.character as any).SetAttackLock(false);
+            }
+        }, { filter: ScopeFilter.ANY });
     }
 
     /**
@@ -88,6 +157,8 @@ export class ABP_CurrsorAnimLogic extends GameObjectBase {
         this.character = null;
         this.characterResolved = false;
         this.lastOrientationX = 1;
+        this.wasOnGround = true;
+        this.attackLocked = false;
     }
 
     // ======================== 核心逻辑 ========================
@@ -117,6 +188,12 @@ export class ABP_CurrsorAnimLogic extends GameObjectBase {
         // 计算动画状态
         const state = computeAnimState(this.character!);
 
+        if (!this.wasOnGround && state.isOnGround) {
+            EventBus.getInstance().emitScoped(EventTypes.OnLanded, -1, GLOBAL_SCOPE, []);
+            console.log(`[ABP_CurrsorAnimLogic] OnLanded emitted`);
+        }
+        this.wasOnGround = state.isOnGround;
+
         // 写回动画蓝图变量
         this.applyStateToAnimInstance(animInst, state);
     }
@@ -145,6 +222,7 @@ export class ABP_CurrsorAnimLogic extends GameObjectBase {
         if (!animInst) return;
 
         try {
+            console.log(`[ABP_CurrsorAnimLogic] onDash JumpToNode EnterDash`);
             animInst.JumpToNode("EnterDash");
         } catch (e) {
             console.error(`[ABP_CurrsorAnimLogic] JumpToNode("EnterDash") 异常: ${e}`);
@@ -253,7 +331,7 @@ export class ABP_CurrsorAnimLogic extends GameObjectBase {
         try {
             // ShouldMove —— 驱动 Idle ↔ Walk 状态机过渡
             if ("ShouldMove" in animInst) {
-                animInst.ShouldMove = state.shouldMove;
+                animInst.ShouldMove = this.attackLocked ? false : state.shouldMove;
             }
 
             // bIsFalling —— 角色是否在下落

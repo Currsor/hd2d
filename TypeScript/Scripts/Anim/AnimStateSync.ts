@@ -12,6 +12,7 @@
  *   - IAnimFieldMapper：字段写回抽象接口，供各蓝图子类实现
  */
 import * as UE from "ue";
+import { getUEEnumValue, loadUEEnum } from "../Bridge/SubsystemBridge";
 
 // ======================== UObject 有效性检查 ========================
 
@@ -65,20 +66,22 @@ const DEFAULT_STATE: Readonly<AnimState> = Object.freeze({
 /** ShouldMove 的速度阈值（单位：cm/s） */
 const SPEED_THRESHOLD = 3.0;
 
+const EMovementModeEnum = loadUEEnum("/Script/Engine.EMovementMode");
+
 /**
  * EMovementMode 数值常量。
- * 
+ *
  * Puerts 运行时中 UE.EMovementMode 枚举对象可能为 undefined，
- * 因此使用与 UE C++ 枚举顺序一致的数值常量替代。
+ * 因此优先从运行时加载枚举值，加载失败时回退到常量数值。
  */
 const EMovementModeValues = {
-    MOVE_None: 0,
-    MOVE_Walking: 1,
-    MOVE_NavWalking: 2,
-    MOVE_Falling: 3,
-    MOVE_Swimming: 4,
-    MOVE_Flying: 5,
-    MOVE_Custom: 6,
+    MOVE_None: getUEEnumValue(EMovementModeEnum, "MOVE_None", 0),
+    MOVE_Walking: getUEEnumValue(EMovementModeEnum, "MOVE_Walking", 1),
+    MOVE_NavWalking: getUEEnumValue(EMovementModeEnum, "MOVE_NavWalking", 2),
+    MOVE_Falling: getUEEnumValue(EMovementModeEnum, "MOVE_Falling", 3),
+    MOVE_Swimming: getUEEnumValue(EMovementModeEnum, "MOVE_Swimming", 4),
+    MOVE_Flying: getUEEnumValue(EMovementModeEnum, "MOVE_Flying", 5),
+    MOVE_Custom: getUEEnumValue(EMovementModeEnum, "MOVE_Custom", 6),
 } as const;
 
 /**

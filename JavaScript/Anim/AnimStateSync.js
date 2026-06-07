@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DEFAULT_STATE = exports.AnimStateSyncContext = void 0;
 exports.computeAnimState = computeAnimState;
+const SubsystemBridge_1 = require("../Bridge/SubsystemBridge");
 // ======================== UObject 有效性检查 ========================
 /**
  * 安全检查一个 UE.Object 引用是否仍然有效。
@@ -34,20 +35,21 @@ exports.DEFAULT_STATE = DEFAULT_STATE;
 // ======================== 状态计算 ========================
 /** ShouldMove 的速度阈值（单位：cm/s） */
 const SPEED_THRESHOLD = 3.0;
+const EMovementModeEnum = (0, SubsystemBridge_1.loadUEEnum)("/Script/Engine.EMovementMode");
 /**
  * EMovementMode 数值常量。
  *
  * Puerts 运行时中 UE.EMovementMode 枚举对象可能为 undefined，
- * 因此使用与 UE C++ 枚举顺序一致的数值常量替代。
+ * 因此优先从运行时加载枚举值，加载失败时回退到常量数值。
  */
 const EMovementModeValues = {
-    MOVE_None: 0,
-    MOVE_Walking: 1,
-    MOVE_NavWalking: 2,
-    MOVE_Falling: 3,
-    MOVE_Swimming: 4,
-    MOVE_Flying: 5,
-    MOVE_Custom: 6,
+    MOVE_None: (0, SubsystemBridge_1.getUEEnumValue)(EMovementModeEnum, "MOVE_None", 0),
+    MOVE_Walking: (0, SubsystemBridge_1.getUEEnumValue)(EMovementModeEnum, "MOVE_Walking", 1),
+    MOVE_NavWalking: (0, SubsystemBridge_1.getUEEnumValue)(EMovementModeEnum, "MOVE_NavWalking", 2),
+    MOVE_Falling: (0, SubsystemBridge_1.getUEEnumValue)(EMovementModeEnum, "MOVE_Falling", 3),
+    MOVE_Swimming: (0, SubsystemBridge_1.getUEEnumValue)(EMovementModeEnum, "MOVE_Swimming", 4),
+    MOVE_Flying: (0, SubsystemBridge_1.getUEEnumValue)(EMovementModeEnum, "MOVE_Flying", 5),
+    MOVE_Custom: (0, SubsystemBridge_1.getUEEnumValue)(EMovementModeEnum, "MOVE_Custom", 6),
 };
 /**
  * 从 CharacterBase 采样并计算当前动画驱动状态。
