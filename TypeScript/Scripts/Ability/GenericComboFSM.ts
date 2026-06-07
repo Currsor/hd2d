@@ -83,10 +83,13 @@ export class GenericComboFSM {
             console.log(`[ComboFSM] tryCancel ${action}: already idle (idx=-1)`);
             return true;
         }
+        if (!this.cancelWindowOpen) {
+            console.log(`[ComboFSM] tryCancel ${action}: window closed, rejected`);
+            return false;
+        }
         const canCancel = this.component?.CanCancel(this.currentIdx, action);
         console.log(`[ComboFSM] tryCancel ${action}: idx=${this.currentIdx} cancelWindow=${this.cancelWindowOpen} canCancel=${canCancel}`);
-        if (!this.cancelWindowOpen || !canCancel) {
-            this.bufferInput(action, now);
+        if (!canCancel) {
             return false;
         }
         this.exitCombo();
@@ -134,13 +137,11 @@ export class GenericComboFSM {
         if (this.currentIdx < 0) { console.log("[ComboFSM] onCancelOpen skipped: idx<0"); return; }
         console.log("[ComboFSM] onCancelOpen fired");
         this.cancelWindowOpen = true;
-        this.consumeBufferAction(a => a !== "Attack");
     }
 
     onCancelClose(_now: number): void {
         if (this.currentIdx < 0) return;
         this.cancelWindowOpen = false;
-        this.consumeBufferAction(a => a !== "Attack");
     }
 
     /**
@@ -303,16 +304,6 @@ export class GenericComboFSM {
         }
     }
 
-    private consumeBufferAction(pred: (a: ActionName) => boolean): void {
-        for (let i = 0; i < this.buffer.length; i++) {
-            if (pred(this.buffer[i].action) && this.component?.CanCancel(this.currentIdx, this.buffer[i].action)) {
-                this.buffer.splice(i, 1);
-                this.exitCombo();
-                return;
-            }
-        }
-    }
-
     private clearBufferedAction(action: ActionName): void {
         this.buffer = this.buffer.filter(b => b.action !== action);
     }
@@ -327,6 +318,8 @@ export class GenericComboFSM {
         this.currentIdx = idx;
         this.cancelWindowOpen = false;
         this.nextAttackPending = false;
+        // 清除非 Attack 缓冲（Dash/Jump 等取消动作不应跨攻击段生效）
+        this.buffer = this.buffer.filter(b => b.action === "Attack");
         this.lastNotifyTime = Date.now();
         const seg = (this.component?.ComboStates?.Get(idx) as any);
         const stateId = `State_${idx}`; // 用 idx 作为 StateId，确保有效值
