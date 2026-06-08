@@ -10760,11 +10760,13 @@ declare module "ue" {
     }
 
 // __TYPE_DECL_END
-// __TYPE_DECL_START: FE6AC150C24068D72C159287AFA95C1A
+// __TYPE_DECL_START: D6A4B0E546D225BCB8FE4FB4E784DF20
     namespace Game.Blueprints.Player.Currsor.Anim.ABP_Currsor {
         class ABP_Currsor_C extends UE.PaperZDAnimInstance {
             constructor(Outer?: Object, Name?: string, ObjectFlags?: number);
             UberGraphFrame: UE.PointerToUberGraphFrame;
+            PaperZDAnimGraphNode_Sink_12: UE.PaperZDAnimNode_Sink;
+            PaperZDAnimGraphNode_PlaySequence_10: UE.PaperZDAnimNode_PlaySequence;
             PaperZDAnimGraphNode_Sink_11: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_PlaySequence_9: UE.PaperZDAnimNode_PlaySequence;
             PaperZDAnimGraphNode_Sink_10: UE.PaperZDAnimNode_Sink;
@@ -10776,12 +10778,12 @@ declare module "ue" {
             PaperZDAnimGraphNode_Sink_7: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_PlaySequence_5: UE.PaperZDAnimNode_PlaySequence;
             PaperZDAnimGraphNode_Sink_6: UE.PaperZDAnimNode_Sink;
-            PaperZDAnimGraphNode_PlaySequence_4: UE.PaperZDAnimNode_PlaySequence;
-            PaperZDAnimGraphNode_Sink_5: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_StateMachine_1: UE.PaperZDAnimNode_StateMachine;
             PaperZDAnimGraphNode_OverrideSlot: UE.PaperZDAnimNode_OverrideSlot;
             PaperZDAnimGraphNode_CacheAnimation_1: UE.PaperZDAnimNode_CacheAnimation;
             PaperZDAnimGraphNode_SetDirectionality: UE.PaperZDAnimNode_SetDirectionality;
+            PaperZDAnimGraphNode_PlaySequence_4: UE.PaperZDAnimNode_PlaySequence;
+            PaperZDAnimGraphNode_Sink_5: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_PlaySequence_3: UE.PaperZDAnimNode_PlaySequence;
             PaperZDAnimGraphNode_Sink_4: UE.PaperZDAnimNode_Sink;
             PaperZDAnimGraphNode_PlaySequence_2: UE.PaperZDAnimNode_PlaySequence;

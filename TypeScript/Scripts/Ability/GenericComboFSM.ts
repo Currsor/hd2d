@@ -215,7 +215,25 @@ export class GenericComboFSM {
         this.buffer = this.buffer.filter(b => now - b.timestamp < BUFFER_TTL_MS);
     }
 
-    forceEnd(): void { this.component?.DeactivateHit(); this.currentIdx = -1; this.cancelWindowOpen = false; }
+    forceEnd(): void {
+        this.component?.DeactivateHit();
+        const wasInState = this.currentIdx >= 0;
+        const prev = this.currentIdx;
+        this.currentIdx = -1;
+        this.cancelWindowOpen = false;
+        this.comboWindowOpen = false;
+        this.nextAttackPending = false;
+        // 仅当之前确实处于某个攻击状态时，才补发 Exit 事件 + 回调，
+        // 让动画层解除 attackLocked、清掉 Action.Combat.Attacking Tag。
+        if (wasInState) {
+            try {
+                EventBus.getInstance().emitScoped(EventTypes.OnComboStateExit, -1, GLOBAL_SCOPE, [prev]);
+            } catch (e) {
+                console.warn(`[ComboFSM] forceEnd emit OnComboStateExit failed: ${e}`);
+            }
+            try { this.callbacks.onExitCombo(); } catch (e) { /* ignore */ }
+        }
+    }
     reset(): void { this.forceEnd(); this.cooldownRemaining = 0; this.buffer = []; this.activeTags.clear(); this.nextAttackPending = false; }
 
     refreshConfig(): void { if (this.component) { this.inputMap.clear(); this.timeoutMap.clear(); this.buildMaps(); } }

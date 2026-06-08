@@ -102,6 +102,19 @@ export class ABP_CurrsorAnimLogic extends GameObjectBase {
             console.log(`[ABP_CurrsorAnimLogic] ComboStateEnter stateId=${stateId} anim=${!!anim}`);
             this.attackLocked = true;
             this.getComboComp()?.AddActiveTag("Action.Combat.Attacking");
+
+            // 先把底层 PaperZD 状态机切回 Idle，避免被 Slot Override 覆盖期间
+            // 底层仍停留在 EnterDash / EnterWalk 等节点，Slot 结束后"露出"残余动画。
+            // 典型场景：Dash 中按攻击 → DashAttack（Slot Override），底层状态机仍在 EnterDash；
+            // DashAttack → A2（FSM 内部 enterState 不发 Exit，只发 Enter），A2 结束 StopOverride
+            // 时底层仍是 EnterDash，导致瞬间露出 Dash 没播完的画面。
+            try {
+                const animInst = this.getAnimInstance();
+                animInst?.JumpToNode("EnterIdle");
+            } catch (e) {
+                console.warn(`[ABP_CurrsorAnimLogic] ComboStateEnter pre-jump EnterIdle failed: ${e}`);
+            }
+
             // 如果事件携带 anim 资源，优先使用可取消的 PlaySlotOverride 播放
             if (anim) {
                 try {
@@ -143,11 +156,30 @@ export class ABP_CurrsorAnimLogic extends GameObjectBase {
 
         // 当连击结束时，清掉 Slot 覆盖 + 解锁移动
         this.subscribeScoped(EventTypes.OnComboStateExit, (_prevIdx?: number) => {
-            console.log(`[ABP_CurrsorAnimLogic] ComboStateExit`);
+            console.log(`[ABP_CurrsorAnimLogic] ComboStateExit prevIdx=${_prevIdx}`);
             try {
                 const animInst = this.getAnimInstance();
-                (animInst as any)?.StopAnimationOverride?.("DefaultSlot");
-            } catch (e) { /* ignore */ }
+                if (animInst) {
+                    (animInst as any)?.StopAnimationOverride?.("DefaultSlot");
+                    if (this.playingOverrideAction) {
+                        try {
+                            const act: any = this.playingOverrideAction;
+                            if (typeof act.Cancel === "function") act.Cancel();
+                            else if (typeof act.CancelAction === "function") act.CancelAction();
+                        } catch (e) { /* ignore */ }
+                    }
+                    // 攻击节点（尤其 EnterAttack4 = DashAttack）可能没配置"动画播完→Idle"过渡，
+                    // 强制跳回 Idle 节点，避免状态机停在攻击最后一帧。
+                    try {
+                        animInst.JumpToNode("EnterIdle");
+                        console.log(`[ABP_CurrsorAnimLogic] ComboStateExit JumpToNode("EnterIdle") ok`);
+                    } catch (e) {
+                        console.warn(`[ABP_CurrsorAnimLogic] ComboStateExit JumpToNode("EnterIdle") failed: ${e}`);
+                    }
+                }
+            } catch (e) {
+                console.warn(`[ABP_CurrsorAnimLogic] ComboStateExit cleanup failed: ${e}`);
+            }
             this.playingOverrideAction = null;
             this.attackLocked = false;
             this.getComboComp()?.RemoveActiveTag("Action.Combat.Attacking");
